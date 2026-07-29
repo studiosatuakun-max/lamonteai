@@ -175,11 +175,11 @@ export default function Sidebar() {
           }`}
         >
           <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-700 text-sm">
-            HR
+            AP
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-sm font-600 text-foreground truncate">Siti Rahayu</p>
+              <p className="text-sm font-600 text-foreground truncate">Andi Pratama</p>
               <p className="text-xs text-muted-foreground truncate">HR Manager</p>
             </div>
           )}

@@ -1,6 +1,5 @@
 import React from 'react';
-import Sidebar from './Sidebar';
-import Topbar from './Topbar';
+import TopNavigation from './TopNavigation';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -14,14 +13,11 @@ export default function AppLayout({
   vacancyTitle,
 }: AppLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar breadcrumbs={breadcrumbs} vacancyTitle={vacancyTitle} />
-        <main className="flex-1 overflow-auto bg-background">
-          {children}
-        </main>
-      </div>
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
+      <TopNavigation breadcrumbs={breadcrumbs} vacancyTitle={vacancyTitle} />
+      <main className="flex-1 overflow-auto bg-background">
+        {children}
+      </main>
     </div>
   );
 }
