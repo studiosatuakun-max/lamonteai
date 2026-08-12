@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, XCircle, Eye, Users, Clock, Filter, SlidersHorizontal,  } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, XCircle, Eye, Users, Clock, Filter, SlidersHorizontal, UploadCloud, Loader2 } from 'lucide-react';
 import { CANDIDATES, VACANCY_TITLE, VACANCY_DEPARTMENT, VACANCY_LOCATION, VACANCY_POSTED } from '@/data/candidates';
 import { Candidate, CandidateStatus, ScoreCategory } from '@/types/recruitment';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -25,6 +25,8 @@ export default function CandidateListContent() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [candidatesList, setCandidatesList] = useState(CANDIDATES);
+  const [isUploading, setIsUploading] = useState(false);
   // Backend integration point: replace with API call to PATCH /api/applications/:id/status
   const [candidateStatuses, setCandidateStatuses] = useState<Record<number, CandidateStatus>>(
     Object.fromEntries(CANDIDATES.map((c) => [c.id, c.status]))
@@ -40,8 +42,36 @@ export default function CandidateListContent() {
     setCurrentPage(1);
   };
 
+  const simulateCVUpload = () => {
+    setIsUploading(true);
+    
+    setTimeout(() => {
+      const newCandidate = {
+        id: candidatesList.length + 1,
+        name: "Rizky Ramadhan",
+        email: "rizky.ramadhan@example.com",
+        phone: "+62 812 3456 7890",
+        location: "Jakarta, Indonesia",
+        experience: "3 years",
+        education: "Bachelor's Degree",
+        role: "Data Analyst",
+        appliedDate: new Date().toISOString().split('T')[0],
+        channel: "Email",
+        score: 92,
+        scoreCategory: "High" as ScoreCategory,
+        status: "Pending" as CandidateStatus,
+        matchPoints: ["Next.js", "React", "Tailwind CSS"],
+        gapPoints: ["GraphQL"],
+        flags: [],
+      };
+      setCandidatesList((prev) => [newCandidate, ...prev]);
+      setCandidateStatuses((prev) => ({ ...prev, [newCandidate.id]: "Pending" }));
+      setIsUploading(false);
+    }, 3000);
+  };
+
   const filtered = useMemo(() => {
-    let result = CANDIDATES.map((c) => ({
+    let result = candidatesList.map((c) => ({
       ...c,
       status: candidateStatuses[c.id] ?? c.status,
     }));
@@ -78,7 +108,7 @@ export default function CandidateListContent() {
     });
 
     return result;
-  }, [search, statusFilter, scoreFilter, sortField, sortDir, candidateStatuses]);
+  }, [search, statusFilter, scoreFilter, sortField, sortDir, candidateStatuses, candidatesList]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
   const paginated = filtered.slice(
@@ -87,8 +117,8 @@ export default function CandidateListContent() {
   );
 
   const allStatuses = useMemo(
-    () => CANDIDATES.map((c) => candidateStatuses[c.id] ?? c.status),
-    [candidateStatuses]
+    () => candidatesList.map((c) => candidateStatuses[c.id] ?? c.status),
+    [candidateStatuses, candidatesList]
   );
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -106,6 +136,14 @@ export default function CandidateListContent() {
   return (
     <div className="px-6 py-6 max-w-screen-2xl mx-auto space-y-5">
       {/* Vacancy context card */}
+      <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 mb-4 flex items-start gap-3">
+        <AlertTriangle className="text-indigo-600 shrink-0 mt-0.5" size={18} />
+        <div>
+          <h4 className="text-sm font-semibold text-indigo-900">AI Smart Alert: Kurang Pelamar dari JobStreet</h4>
+          <p className="text-xs text-indigo-700 mt-1">Sistem mendeteksi bahwa posisi ini sepi pelamar dari JobStreet dalam 3 hari terakhir. AI menyarankan untuk melakukan <i>bump</i> postingan atau mencoba saluran Glints.</p>
+        </div>
+      </div>
+
       <div className="bg-card border border-border rounded-xl shadow-card px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
@@ -122,15 +160,34 @@ export default function CandidateListContent() {
             <span>Posted {VACANCY_POSTED}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Users size={14} />
-          <span className="font-600 text-foreground">{CANDIDATES.length}</span>
-          <span>total applicants</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground hidden sm:flex">
+            <Users size={14} />
+            <span className="font-600 text-foreground">{candidatesList.length}</span>
+            <span>total applicants</span>
+          </div>
+          <button 
+            onClick={simulateCVUpload} 
+            disabled={isUploading} 
+            className="flex h-9 items-center gap-2 rounded-md bg-indigo-600 px-4 text-sm font-500 text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Memproses OCR...</span>
+              </>
+            ) : (
+              <>
+                <UploadCloud size={16} />
+                <span>Unggah CV Baru</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       {/* Stats bar */}
-      <CandidateStatsBar statuses={allStatuses} totalCandidates={CANDIDATES.length} />
+      <CandidateStatsBar statuses={allStatuses} totalCandidates={candidatesList.length} />
 
       {/* Filters + Search */}
       <div className="bg-card border border-border rounded-xl shadow-card px-5 py-4 space-y-3">
@@ -192,7 +249,7 @@ export default function CandidateListContent() {
           <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t border-border">
             <Filter size={12} />
             <span>
-              Showing {filtered.length} of {CANDIDATES.length} candidates
+              Showing {filtered.length} of {candidatesList.length} candidates
             </span>
             <button
               onClick={() => { setSearch(''); setStatusFilter('All'); setScoreFilter('All'); setCurrentPage(1); }}
@@ -241,7 +298,7 @@ export default function CandidateListContent() {
                   Matches
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-600 uppercase tracking-wider text-muted-foreground">
-                  Gaps
+                  Channel
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-600 uppercase tracking-wider text-muted-foreground">
                   Flags
@@ -342,19 +399,14 @@ export default function CandidateListContent() {
                           <span className="text-sm font-600 text-green-700 font-tabular">
                             {candidate.matchPoints.length}
                           </span>
-                          <span className="text-xs text-muted-foreground">criteria</span>
                         </div>
                       </td>
 
-                      {/* Gaps */}
+                      {/* Channel */}
                       <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1.5">
-                          <XCircle size={14} className="text-red-400 flex-shrink-0" />
-                          <span className="text-sm font-600 text-red-600 font-tabular">
-                            {candidate.gapPoints.length}
-                          </span>
-                          <span className="text-xs text-muted-foreground">missing</span>
-                        </div>
+                        <span className="text-xs font-medium text-slate-600 px-2 py-1 rounded bg-slate-100">
+                          {candidate.channel || ['JobStreet', 'Email', 'Glints', 'Manual'][candidate.id % 4]}
+                        </span>
                       </td>
 
                       {/* Flags */}

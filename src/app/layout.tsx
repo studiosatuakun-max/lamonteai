@@ -16,9 +16,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'LamonteAI — AI-Powered Recruitment Intelligence',
-  description:
-    'LamonteAI helps HR teams triage applicants faster with AI relevance scores, match-gap analysis, and structured hiring decisions.',
+  title: 'Lovise Sofa Smart ERP',
+  description: 'Sistem Manajemen Cerdas terintegrasi dengan modul HR, FAT, dan Operasional.',
   icons: {
     icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
   },

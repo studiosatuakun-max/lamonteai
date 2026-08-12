@@ -17,4 +17,5 @@ export interface Candidate {
   experience: string;
   education: string;
   location: string;
+  channel?: string;
 }

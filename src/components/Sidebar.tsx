@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import {
   LayoutDashboard,
@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Bell,
   HelpCircle,
+  LogOut,
 } from 'lucide-react';
 
 interface NavItem {
@@ -25,24 +26,22 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
-    key: 'nav-home',
-    label: 'Home',
-    href: '/',
-    icon: <LayoutDashboard size={18} />,
-  },
-  {
-    key: 'nav-jobs',
-    label: 'Job Vacancies',
-    href: '/jobs',
-    icon: <Briefcase size={18} />,
-    badge: 3,
-  },
-  {
-    key: 'nav-candidates',
-    label: 'Candidates',
-    href: '/',
+    key: 'nav-hr',
+    label: 'HR Module',
+    href: '/hr',
     icon: <Users size={18} />,
-    badge: 8,
+  },
+  {
+    key: 'nav-finance',
+    label: 'Finance (FAT)',
+    href: '/finance',
+    icon: <Briefcase size={18} />,
+  },
+  {
+    key: 'nav-ops',
+    label: 'Operations',
+    href: '/operations',
+    icon: <LayoutDashboard size={18} />,
   },
   {
     key: 'nav-settings',
@@ -55,6 +54,7 @@ const NAV_ITEMS: NavItem[] = [
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <aside
@@ -72,10 +72,10 @@ export default function Sidebar() {
         }`}
         style={{ minHeight: 64 }}
       >
-        <AppLogo size={32} />
+        <AppLogo size={32} src="" />
         {!collapsed && (
           <span className="font-bold text-base text-foreground tracking-tight">
-            LamonteAI
+            Lovise Sofa
           </span>
         )}
       </div>
@@ -167,6 +167,14 @@ export default function Sidebar() {
             )}
           </div>
         ))}
+        
+        <button 
+          onClick={() => router.push('/')}
+          className={`sidebar-item w-full text-rose-500 hover:text-rose-600 hover:bg-rose-50 ${collapsed ? 'justify-center px-0' : ''}`}
+        >
+          <LogOut size={18} />
+          {!collapsed && <span className="flex-1 text-left">Keluar</span>}
+        </button>
 
         {/* User avatar */}
         <div
