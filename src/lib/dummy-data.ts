@@ -26,6 +26,19 @@ export type Order = {
   status: "Pending" | "Production" | "Distribution" | "Procurement";
 };
 
+export type SalesOrder = {
+  id: string;
+  customerName: string;
+  productName: string;
+  productType: "Ready Stock" | "PO Sofa" | "PO Produk Mebel";
+  region: "Dalam Kota" | "Luar Kota";
+  requestDate?: string;
+  hasBlueprint?: boolean; // Khusus PO Sofa
+  purchasingStatus?: "Belum" | "Requested" | "Ordered"; // Khusus PO Mebel
+  currentStage: "Kepala Toko" | "Produksi" | "Purchasing" | "Inventory" | "Distribusi" | "Selesai";
+  status: "Pending" | "Diproses" | "Blocked" | "Selesai";
+};
+
 export type Supplier = {
   id: string;
   name: string;
@@ -60,6 +73,13 @@ export const mockOrders: Order[] = [
   { id: "o1", customerName: "PT Maju Jaya", product: "Sofa Minimalis", quantity: 5, stockAvailable: 10, status: "Pending" },
   { id: "o2", customerName: "CV Abadi", product: "Meja Kerja", quantity: 20, stockAvailable: 0, status: "Pending" },
   { id: "o3", customerName: "Toko Sinar", product: "Kursi Kantor PO (Khusus)", quantity: 50, stockAvailable: 0, status: "Pending" }, // Akan lari ke Procurement
+];
+
+export const mockSalesOrders: SalesOrder[] = [
+  { id: "so-001", customerName: "Bpk. Budi", productName: "Sofa Retro 3 Seater", productType: "Ready Stock", region: "Dalam Kota", currentStage: "Inventory", status: "Pending" },
+  { id: "so-002", customerName: "Ibu Siska", productName: "Sofa Custom L-Shape", productType: "PO Sofa", region: "Luar Kota", hasBlueprint: false, currentStage: "Kepala Toko", status: "Blocked" },
+  { id: "so-003", customerName: "PT Sejahtera", productName: "Meja Rapat Kayu Jati", productType: "PO Produk Mebel", region: "Dalam Kota", purchasingStatus: "Belum", currentStage: "Purchasing", status: "Pending" },
+  { id: "so-004", customerName: "Klinik Sehat", productName: "Kursi Tunggu", productType: "Ready Stock", region: "Dalam Kota", requestDate: "2026-08-20", currentStage: "Distribusi", status: "Pending" },
 ];
 
 export const mockSuppliers: Supplier[] = [

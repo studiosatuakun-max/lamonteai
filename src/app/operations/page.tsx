@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings2, ArrowRightCircle, Package, Factory, CheckCircle2, TrendingUp, Map, Star, Truck, ShoppingCart } from "lucide-react";
-import { mockOrders, mockSuppliers, mockProductionJobs, Order } from "@/lib/dummy-data";
+import { Settings2, PenTool, ClipboardList, Warehouse, Truck, CheckCircle2, AlertTriangle, FilePlus2, PackageCheck, CalendarDays, ShoppingBag } from "lucide-react";
+import { mockSalesOrders, SalesOrder } from "@/lib/dummy-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,41 +11,58 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import AppLayout from "@/components/AppLayout";
 
 export default function OperationsModule() {
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("orders");
+  const [orders, setOrders] = useState<SalesOrder[]>(mockSalesOrders);
+  const [activeTab, setActiveTab] = useState("sales");
+  const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
-  const processOrder = (id: string) => {
-    setProcessingId(id);
-    setTimeout(() => {
-      setOrders(prevOrders => 
-        prevOrders.map(order => {
-          if (order.id === id) {
-            let newStatus = "Production";
-            if (order.stockAvailable >= order.quantity) newStatus = "Distribution";
-            if (order.product.includes("PO")) newStatus = "Procurement";
-            return { ...order, status: newStatus as any };
-          }
-          return order;
-        })
-      );
-      setProcessingId(null);
-    }, 800);
+  // Form State for Sales
+  const [newOrder, setNewOrder] = useState({
+    customerName: "",
+    productName: "",
+    productType: "Ready Stock" as "Ready Stock" | "PO Sofa" | "PO Produk Mebel",
+    region: "Dalam Kota" as "Dalam Kota" | "Luar Kota",
+    requestDate: "",
+    hasBlueprint: true,
+    purchasingStatus: "Belum" as "Belum" | "Requested" | "Ordered",
+  });
+
+  const handleCreateOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrder.customerName || !newOrder.productName) return;
+
+    let initialStage: SalesOrder["currentStage"] = "Inventory";
+    let initialStatus: SalesOrder["status"] = "Pending";
+
+    if (newOrder.productType === "PO Sofa") {
+      initialStage = "Kepala Toko";
+      if (!newOrder.hasBlueprint) initialStatus = "Blocked";
+    } else if (newOrder.productType === "PO Produk Mebel") {
+      initialStage = "Purchasing";
+    }
+
+    const orderToCreate: SalesOrder = {
+      id: `so-00${orders.length + 1}`,
+      customerName: newOrder.customerName,
+      productName: newOrder.productName,
+      productType: newOrder.productType,
+      region: newOrder.region,
+      requestDate: newOrder.requestDate,
+      hasBlueprint: newOrder.hasBlueprint,
+      purchasingStatus: newOrder.purchasingStatus,
+      currentStage: initialStage,
+      status: initialStatus,
+    };
+
+    setOrders([orderToCreate, ...orders]);
+    setNewOrder({ ...newOrder, customerName: "", productName: "", requestDate: "" });
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Pending":
-        return <Badge variant="warning" className="w-[100px] justify-center">Pending</Badge>;
-      case "Production":
-        return <Badge variant="destructive" className="w-[100px] justify-center bg-orange-500">Production</Badge>;
-      case "Distribution":
-        return <Badge variant="success" className="w-[100px] justify-center bg-blue-500">Distribution</Badge>;
-      case "Procurement":
-        return <Badge variant="outline" className="w-[100px] justify-center border-purple-500 text-purple-700 bg-purple-50">Procurement</Badge>;
-      default:
-        return <Badge variant="default">{status}</Badge>;
-    }
+  const advanceStage = (id: string, nextStage: SalesOrder["currentStage"], newStatus: SalesOrder["status"] = "Pending") => {
+    setIsProcessing(id);
+    setTimeout(() => {
+      setOrders(orders.map(o => o.id === id ? { ...o, currentStage: nextStage, status: newStatus } : o));
+      setIsProcessing(null);
+    }, 800);
   };
 
   return (
@@ -53,16 +70,16 @@ export default function OperationsModule() {
       <div className="p-8 space-y-8 animate-in fade-in duration-500">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Operations Module</h1>
-          <p className="text-slate-500 mt-1">AI Supply Chain Optimization (Produksi, Distribusi, dan Procurement).</p>
+          <p className="text-slate-500 mt-1">Role-Based To-Do List Dashboard (SOP Alur Penjualan).</p>
         </div>
 
-        {/* Custom Tabs */}
-        <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg w-max">
+        {/* Tabs */}
+        <div className="flex space-x-1 bg-slate-100 p-1 rounded-lg w-max overflow-x-auto">
           {[
-            { id: "orders", label: "Order Management", icon: <ShoppingCart size={16} /> },
-            { id: "production", label: "Production (AI)", icon: <Factory size={16} /> },
-            { id: "distribution", label: "Distribution (AI)", icon: <Truck size={16} /> },
-            { id: "procurement", label: "Procurement (AI)", icon: <Star size={16} /> },
+            { id: "sales", label: "Sales & Order Entry", icon: <ClipboardList size={16} /> },
+            { id: "produksi", label: "Produksi (Kepala Toko & Partner)", icon: <PenTool size={16} /> },
+            { id: "purchasing", label: "Purchasing & Inventory", icon: <Warehouse size={16} /> },
+            { id: "distribusi", label: "Distribusi & Kalender", icon: <Truck size={16} /> },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -76,75 +93,84 @@ export default function OperationsModule() {
           ))}
         </div>
 
-        {activeTab === "orders" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {["Pending", "Production", "Distribution", "Procurement"].map(status => (
-                <Card key={status} className="bg-white shadow-sm border-slate-200">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-semibold text-slate-500 uppercase">{status}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-slate-800">
-                      {orders.filter(o => o.status === status).length}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <Card className="bg-white shadow-sm border-slate-200">
+        {/* TAB: SALES */}
+        {activeTab === "sales" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-1 shadow-sm border-slate-200">
               <CardHeader className="bg-slate-50/50 border-b border-slate-100">
-                <CardTitle>Daftar Pesanan Masuk</CardTitle>
-                <CardDescription>
-                  Klik "Proses" untuk routing pesanan. (Ready = Distribusi, Kosong = Produksi, PO = Procurement).
-                </CardDescription>
+                <CardTitle className="flex items-center gap-2"><FilePlus2 size={18} className="text-indigo-600" /> Form Penjualan</CardTitle>
+                <CardDescription>Input pesanan dari konsumen.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <form onSubmit={handleCreateOrder} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 uppercase">Nama Konsumen</label>
+                    <input required value={newOrder.customerName} onChange={e => setNewOrder({...newOrder, customerName: e.target.value})} className="w-full mt-1 border rounded-md px-3 py-2 text-sm" placeholder="Contoh: PT Sejahtera" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-600 uppercase">Nama Produk</label>
+                    <input required value={newOrder.productName} onChange={e => setNewOrder({...newOrder, productName: e.target.value})} className="w-full mt-1 border rounded-md px-3 py-2 text-sm" placeholder="Contoh: Sofa L-Shape" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 uppercase">Jenis Produk</label>
+                      <select value={newOrder.productType} onChange={e => setNewOrder({...newOrder, productType: e.target.value as any})} className="w-full mt-1 border rounded-md px-3 py-2 text-sm">
+                        <option value="Ready Stock">Ready Stock</option>
+                        <option value="PO Sofa">PO Sofa</option>
+                        <option value="PO Produk Mebel">PO Produk Mebel</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-600 uppercase">Wilayah</label>
+                      <select value={newOrder.region} onChange={e => setNewOrder({...newOrder, region: e.target.value as any})} className="w-full mt-1 border rounded-md px-3 py-2 text-sm">
+                        <option value="Dalam Kota">Dalam Kota</option>
+                        <option value="Luar Kota">Luar Kota</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {newOrder.productType === "PO Sofa" && (
+                    <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-md border">
+                      <input type="checkbox" id="blueprint" checked={newOrder.hasBlueprint} onChange={e => setNewOrder({...newOrder, hasBlueprint: e.target.checked})} className="rounded text-indigo-600" />
+                      <label htmlFor="blueprint" className="text-sm font-medium text-slate-700">Gambar Kerja Sudah Ada?</label>
+                    </div>
+                  )}
+
+                  <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">Buat Pesanan & Routing Otomatis</Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2 shadow-sm border-slate-200">
+              <CardHeader className="bg-slate-50/50 border-b border-slate-100">
+                <CardTitle className="flex items-center gap-2"><ShoppingBag size={18} className="text-indigo-600" /> Tracking Pesanan (Sales View)</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader className="bg-slate-50">
+                  <TableHeader>
                     <TableRow>
-                      <TableHead className="pl-6">ID Pesanan</TableHead>
-                      <TableHead>Pelanggan</TableHead>
-                      <TableHead>Produk</TableHead>
-                      <TableHead className="text-center">Qty / Stok</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-right pr-6">Aksi (Rule-Based)</TableHead>
+                      <TableHead className="pl-6">ID</TableHead>
+                      <TableHead>Konsumen & Produk</TableHead>
+                      <TableHead>Jenis</TableHead>
+                      <TableHead>Current Stage</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <AnimatePresence>
-                      {orders.map((order) => (
-                        <motion.tr key={order.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="border-b">
-                          <TableCell className="pl-6 font-mono text-xs text-slate-500">#{order.id}</TableCell>
-                          <TableCell className="font-medium text-slate-900">{order.customerName}</TableCell>
-                          <TableCell className="text-slate-600">{order.product}</TableCell>
-                          <TableCell>
-                            <div className="flex justify-center gap-2">
-                              <span className="font-semibold text-slate-900">{order.quantity}</span> /
-                              <span className={`font-semibold ${order.stockAvailable >= order.quantity ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                {order.stockAvailable}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <motion.div layout>{getStatusBadge(order.status)}</motion.div>
-                          </TableCell>
-                          <TableCell className="text-right pr-6">
-                            {order.status === "Pending" ? (
-                              <Button 
-                                onClick={() => processOrder(order.id)} disabled={processingId === order.id}
-                                size="sm" className="bg-indigo-600 hover:bg-indigo-700 w-28"
-                              >
-                                {processingId === order.id ? <Settings2 className="animate-spin h-4 w-4" /> : <>Proses <ArrowRightCircle className="ml-2 h-4 w-4" /></>}
-                              </Button>
-                            ) : (
-                              <Button disabled size="sm" variant="outline" className="w-28 text-slate-400">Routed</Button>
-                            )}
-                          </TableCell>
-                        </motion.tr>
-                      ))}
-                    </AnimatePresence>
+                    {orders.map((o) => (
+                      <TableRow key={o.id}>
+                        <TableCell className="pl-6 font-mono text-xs">{o.id}</TableCell>
+                        <TableCell>
+                          <div className="font-semibold">{o.customerName}</div>
+                          <div className="text-xs text-slate-500">{o.productName}</div>
+                        </TableCell>
+                        <TableCell><Badge variant="outline">{o.productType}</Badge></TableCell>
+                        <TableCell><Badge className="bg-slate-200 text-slate-800 hover:bg-slate-300 border-none">{o.currentStage}</Badge></TableCell>
+                        <TableCell>
+                          <Badge variant={o.status === "Blocked" ? "destructive" : o.status === "Selesai" ? "success" : "warning"}>{o.status}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -152,97 +178,184 @@ export default function OperationsModule() {
           </motion.div>
         )}
 
-        {activeTab === "production" && (
+        {/* TAB: PRODUKSI */}
+        {activeTab === "produksi" && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="bg-white shadow-sm border-slate-200">
-              <CardHeader className="border-b border-slate-100">
-                <CardTitle className="flex items-center gap-2"><Factory className="text-orange-500"/> AI Smart Plotting (Produksi)</CardTitle>
-                <CardDescription>AI menyusun jadwal produksi otomatis untuk memaksimalkan efisiensi mesin.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mockProductionJobs.map(job => (
-                    <div key={job.id} className="p-4 border border-orange-100 bg-orange-50/30 rounded-lg flex justify-between items-center">
-                      <div>
-                        <h4 className="font-semibold text-slate-900">{job.product}</h4>
-                        <p className="text-sm text-slate-600 mt-1">Rekomendasi AI: <strong>{job.suggestedShift}</strong></p>
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="success" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-none">
-                          <TrendingUp className="mr-1 h-3 w-3" /> +{job.efficiencyGain}% Efisiensi
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {activeTab === "distribution" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="bg-white shadow-sm border-slate-200">
-              <CardHeader className="border-b border-slate-100">
-                <CardTitle className="flex items-center gap-2"><Map className="text-blue-500"/> AI Route Optimization (Distribusi)</CardTitle>
-                <CardDescription>AI mengelompokkan pengiriman ke rute yang sama untuk menghemat biaya.</CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 text-center py-16">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
-                  <Truck size={32} />
-                </div>
-                <h3 className="text-lg font-medium text-slate-900">Rute Pengiriman Optimal Ditemukan</h3>
-                <p className="text-slate-500 max-w-md mx-auto mt-2">
-                  AI telah menggabungkan 3 pesanan ke rute Jakarta Selatan. Estimasi penghematan bahan bakar: <strong>22%</strong> dan waktu: <strong>1.5 Jam</strong>.
-                </p>
-                <Button className="mt-6 bg-blue-600 hover:bg-blue-700">Cetak Surat Jalan & Rute</Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {activeTab === "procurement" && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <Card className="bg-white shadow-sm border-slate-200">
-              <CardHeader className="border-b border-slate-100">
-                <CardTitle className="flex items-center gap-2"><Star className="text-purple-500"/> AI Supplier Scoring (Procurement)</CardTitle>
-                <CardDescription>Pemilihan supplier otomatis berdasarkan sentimen review dan rekam jejak pengiriman.</CardDescription>
+            <Card className="shadow-sm border-slate-200">
+              <CardHeader className="bg-orange-50/50 border-b border-orange-100">
+                <CardTitle className="flex items-center gap-2"><PenTool size={18} className="text-orange-600" /> To-Do List: Kepala Toko & Produksi</CardTitle>
+                <CardDescription>Khusus menangani pesanan PO Sofa.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="pl-6">Nama Supplier</TableHead>
-                      <TableHead>Harga Penawaran</TableHead>
-                      <TableHead>Estimasi Tiba</TableHead>
-                      <TableHead>Sentimen Review</TableHead>
-                      <TableHead className="text-right pr-6">AI Trust Score</TableHead>
+                      <TableHead className="pl-6">ID</TableHead>
+                      <TableHead>Konsumen & Produk</TableHead>
+                      <TableHead>Role / Stage</TableHead>
+                      <TableHead>Kondisi</TableHead>
+                      <TableHead className="text-right pr-6">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mockSuppliers.sort((a, b) => b.aiTrustScore - a.aiTrustScore).map((supplier, idx) => (
-                      <TableRow key={supplier.id} className={idx === 0 ? "bg-purple-50/50" : ""}>
-                        <TableCell className="pl-6 font-medium">
-                          {supplier.name} 
-                          {idx === 0 && <Badge className="ml-2 bg-purple-600">Rekomendasi Utama</Badge>}
-                        </TableCell>
-                        <TableCell className="font-mono">Rp {supplier.price.toLocaleString("id-ID")}</TableCell>
-                        <TableCell>{supplier.speedDays} Hari</TableCell>
+                    {orders.filter(o => o.productType === "PO Sofa" && ["Kepala Toko", "Produksi"].includes(o.currentStage)).map((o) => (
+                      <TableRow key={o.id}>
+                        <TableCell className="pl-6 font-mono text-xs">{o.id}</TableCell>
                         <TableCell>
-                          <span className={`text-sm font-semibold ${supplier.sentiment === 'Positive' ? 'text-emerald-600' : supplier.sentiment === 'Negative' ? 'text-rose-600' : 'text-amber-600'}`}>
-                            {supplier.sentiment}
-                          </span>
+                          <div className="font-semibold">{o.customerName}</div>
+                          <div className="text-xs text-slate-500">{o.productName}</div>
+                        </TableCell>
+                        <TableCell><Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200 border-none">{o.currentStage}</Badge></TableCell>
+                        <TableCell>
+                          {o.currentStage === "Kepala Toko" && o.status === "Blocked" ? (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-rose-600"><AlertTriangle size={14}/> Menunggu Gambar Kerja</span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600"><CheckCircle2 size={14}/> Siap Diproses</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right pr-6">
-                          <div className="flex items-center justify-end gap-2">
-                            <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
-                              <div className="h-full bg-purple-500" style={{ width: `${supplier.aiTrustScore}%` }}></div>
-                            </div>
-                            <span className="font-bold">{supplier.aiTrustScore}</span>
-                          </div>
+                          {o.currentStage === "Kepala Toko" && (
+                            <Button 
+                              size="sm" 
+                              disabled={o.status === "Blocked" || isProcessing === o.id}
+                              onClick={() => advanceStage(o.id, "Produksi", "Diproses")}
+                              className="bg-orange-600 hover:bg-orange-700"
+                            >
+                              Buat Form Produksi
+                            </Button>
+                          )}
+                          {o.currentStage === "Produksi" && (
+                            <Button 
+                              size="sm" 
+                              disabled={isProcessing === o.id}
+                              onClick={() => advanceStage(o.id, "Inventory", "Pending")}
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              Selesai Diproduksi
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
+                    {orders.filter(o => o.productType === "PO Sofa" && ["Kepala Toko", "Produksi"].includes(o.currentStage)).length === 0 && (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Tidak ada tugas PO Sofa saat ini.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* TAB: PURCHASING & INVENTORY */}
+        {activeTab === "purchasing" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="shadow-sm border-slate-200">
+              <CardHeader className="bg-purple-50/50 border-b border-purple-100">
+                <CardTitle className="flex items-center gap-2"><Warehouse size={18} className="text-purple-600" /> To-Do List: Purchasing & Inventory</CardTitle>
+                <CardDescription>Menangani pesanan PO Mebel (Purchasing) dan Konfirmasi Kedatangan Barang (Inventory).</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">ID</TableHead>
+                      <TableHead>Konsumen & Produk</TableHead>
+                      <TableHead>Role / Stage</TableHead>
+                      <TableHead>Jenis Produk</TableHead>
+                      <TableHead className="text-right pr-6">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.filter(o => ["Purchasing", "Inventory"].includes(o.currentStage)).map((o) => (
+                      <TableRow key={o.id}>
+                        <TableCell className="pl-6 font-mono text-xs">{o.id}</TableCell>
+                        <TableCell>
+                          <div className="font-semibold">{o.customerName}</div>
+                          <div className="text-xs text-slate-500">{o.productName}</div>
+                        </TableCell>
+                        <TableCell><Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200 border-none">{o.currentStage}</Badge></TableCell>
+                        <TableCell><span className="text-sm text-slate-600">{o.productType}</span></TableCell>
+                        <TableCell className="text-right pr-6">
+                          {o.currentStage === "Purchasing" && (
+                            <Button 
+                              size="sm" 
+                              disabled={isProcessing === o.id}
+                              onClick={() => advanceStage(o.id, "Inventory", "Pending")}
+                              className="bg-purple-600 hover:bg-purple-700"
+                            >
+                              Buat PO ke Supplier
+                            </Button>
+                          )}
+                          {o.currentStage === "Inventory" && (
+                            <Button 
+                              size="sm" 
+                              disabled={isProcessing === o.id}
+                              onClick={() => advanceStage(o.id, "Distribusi", "Pending")}
+                              variant="outline"
+                              className="border-purple-600 text-purple-700 hover:bg-purple-50"
+                            >
+                              <PackageCheck size={16} className="mr-2" /> Konfirmasi Barang Tiba
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* TAB: DISTRIBUSI */}
+        {activeTab === "distribusi" && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="shadow-sm border-slate-200">
+              <CardHeader className="bg-blue-50/50 border-b border-blue-100">
+                <CardTitle className="flex items-center gap-2"><CalendarDays size={18} className="text-blue-600" /> Kalender & Plotting Distribusi</CardTitle>
+                <CardDescription>Pesanan siap dikirim. Plotting jadwal ke kalender pengiriman.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">ID</TableHead>
+                      <TableHead>Konsumen & Produk</TableHead>
+                      <TableHead>Wilayah</TableHead>
+                      <TableHead>Request Tgl</TableHead>
+                      <TableHead className="text-right pr-6">Aksi Plotting</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.filter(o => o.currentStage === "Distribusi").map((o) => (
+                      <TableRow key={o.id}>
+                        <TableCell className="pl-6 font-mono text-xs">{o.id}</TableCell>
+                        <TableCell>
+                          <div className="font-semibold">{o.customerName}</div>
+                          <div className="text-xs text-slate-500">{o.productName}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={o.region === "Dalam Kota" ? "default" : "secondary"}>{o.region}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm font-medium">{o.requestDate || "Sesuai Rute"}</span>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                          <Button 
+                            size="sm" 
+                            disabled={isProcessing === o.id}
+                            onClick={() => advanceStage(o.id, "Selesai", "Selesai")}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            Plot Jadwal & Rute
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {orders.filter(o => o.currentStage === "Distribusi").length === 0 && (
+                      <TableRow><TableCell colSpan={5} className="text-center py-8 text-slate-500">Tidak ada pesanan yang siap dikirim.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
