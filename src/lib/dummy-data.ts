@@ -26,18 +26,7 @@ export type Order = {
   status: "Pending" | "Production" | "Distribution" | "Procurement";
 };
 
-export type SalesOrder = {
-  id: string;
-  customerName: string;
-  productName: string;
-  productType: "Ready Stock" | "PO Sofa" | "PO Produk Mebel";
-  region: "Dalam Kota" | "Luar Kota";
-  requestDate?: string;
-  hasBlueprint?: boolean; // Khusus PO Sofa
-  purchasingStatus?: "Belum" | "Requested" | "Ordered"; // Khusus PO Mebel
-  currentStage: "Kepala Toko" | "Produksi" | "Purchasing" | "Inventory" | "Distribusi" | "Selesai";
-  status: "Pending" | "Diproses" | "Blocked" | "Selesai";
-};
+import { SalesOrder } from "@/types/operations";
 
 export type Supplier = {
   id: string;
@@ -76,10 +65,11 @@ export const mockOrders: Order[] = [
 ];
 
 export const mockSalesOrders: SalesOrder[] = [
-  { id: "so-001", customerName: "Bpk. Budi", productName: "Sofa Retro 3 Seater", productType: "Ready Stock", region: "Dalam Kota", currentStage: "Inventory", status: "Pending" },
-  { id: "so-002", customerName: "Ibu Siska", productName: "Sofa Custom L-Shape", productType: "PO Sofa", region: "Luar Kota", hasBlueprint: false, currentStage: "Kepala Toko", status: "Blocked" },
-  { id: "so-003", customerName: "PT Sejahtera", productName: "Meja Rapat Kayu Jati", productType: "PO Produk Mebel", region: "Dalam Kota", purchasingStatus: "Belum", currentStage: "Purchasing", status: "Pending" },
-  { id: "so-004", customerName: "Klinik Sehat", productName: "Kursi Tunggu", productType: "Ready Stock", region: "Dalam Kota", requestDate: "2026-08-20", currentStage: "Distribusi", status: "Pending" },
+  { id: "so-001", customerName: "Bpk. Budi", productName: "Sofa Retro 3 Seater", productType: "Ready Stock", region: "Dalam Kota", currentStage: "Inventory", status: "Pending", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: "so-002", customerName: "Ibu Siska", productName: "Sofa Custom L-Shape", productType: "PO Sofa", region: "Luar Kota", hasBlueprint: false, currentStage: "Kepala Toko", status: "Blocked", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: "so-003", customerName: "PT Sejahtera", productName: "Meja Rapat Kayu Jati", productType: "PO Produk Mebel", region: "Dalam Kota", purchasingStatus: "Belum", currentStage: "Purchasing", status: "Pending", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: "so-004", customerName: "Klinik Sehat", productName: "Kursi Tunggu", productType: "Ready Stock", region: "Dalam Kota", requestDate: "2026-08-20", currentStage: "Distribusi", status: "Pending", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: "so-005", customerName: "Bpk. Andi", productName: "Sofa Recliner X", productType: "PO Sofa", region: "Dalam Kota", hasBlueprint: true, currentStage: "Produksi", productionStage: "Potong Rangka", status: "Diproses", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
 export const mockSuppliers: Supplier[] = [
