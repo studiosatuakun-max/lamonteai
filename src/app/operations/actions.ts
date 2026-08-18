@@ -14,64 +14,51 @@ export async function submitOrderToEngine(payload: CreateOrderPayload): Promise<
       return { success: false, message: "Nama konsumen dan produk wajib diisi." };
     }
 
-    const AI_ENGINE_URL = process.env.AI_ENGINE_URL || "http://127.0.0.1:8000";
+    // SIMULASI DUMMY (Tanpa konek ke Backend Python)
+    // Delay buatan agar seolah-olah AI sedang berpikir
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Call FastAPI LangGraph Engine
-    const response = await fetch(`${AI_ENGINE_URL}/api/route-order`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    let currentStage: any = "Inventory";
+    let status: any = "Pending";
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `AI Engine returned status: ${response.status}`);
+    if (payload.productType === "PO Sofa") {
+      currentStage = "Kepala Toko";
+      status = payload.hasBlueprint ? "Diproses" : "Blocked";
+    } else if (payload.productType === "PO Produk Mebel") {
+      currentStage = "Purchasing";
+      status = "Pending";
+    } else {
+      currentStage = "Inventory";
+      status = "Pending";
     }
 
-    const result = await response.json();
-    
-    // The FastAPI returns { success: true, message: "...", data: { order_id: "...", current_stage: "...", ... } }
-    if (!result.success) {
-      throw new Error(result.message || "Failed to process order in AI Engine");
-    }
-
-    // Map the returned Python state (snake_case) back to our TypeScript interface (camelCase)
-    // In a real app, you might want to use Zod to parse this safely
-    const aiState = result.data;
-    
     const newOrder: SalesOrder = {
-      id: aiState.order_id || `so-${Date.now().toString().slice(-6)}`,
-      customerName: aiState.customer_name,
-      productName: aiState.product_name,
-      productType: payload.productType, // We keep the original payload types 
+      id: `so-${Date.now().toString().slice(-6)}`,
+      customerName: payload.customerName,
+      productName: payload.productName,
+      productType: payload.productType, 
       region: payload.region,
-      requestDate: aiState.request_date || "",
-      hasBlueprint: aiState.has_blueprint,
+      requestDate: payload.requestDate || "",
+      hasBlueprint: payload.hasBlueprint,
       purchasingStatus: payload.productType === "PO Produk Mebel" ? "Belum" : undefined,
-      currentStage: aiState.current_stage as any,
-      status: aiState.status as any,
+      currentStage: currentStage,
+      status: status,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // TODO: Insert into Supabase 'sales_orders' table
-    // const { data, error } = await supabase.from('sales_orders').insert([newOrder]).select().single()
-
-    // Revalidate the operations path so UI refetches server state if we were doing SSR
     revalidatePath("/operations");
 
     return {
       success: true,
-      message: "Pesanan berhasil dirouting oleh AI Supervisor!",
+      message: "Pesanan berhasil dirouting secara otomatis (Dummy AI)!",
       data: newOrder,
     };
   } catch (error: any) {
     console.error("Error in submitOrderToEngine:", error);
     return {
       success: false,
-      message: "Gagal memproses pesanan dengan AI Engine.",
+      message: "Gagal memproses pesanan.",
       error: error?.message,
     };
   }
