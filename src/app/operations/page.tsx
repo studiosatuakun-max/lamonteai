@@ -411,33 +411,65 @@ export default function OperationsModule() {
         {activeTab === "sales" && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             
-            {/* ALERT RESTOCK WIDGET JIKA ADA STOK KRITIS */}
+            {/* ALERT RESTOCK WIDGET JIKA ADA STOK KRITIS (GRID VIEW - NO SWIPE) */}
             {stockItems.some(s => s.status === "Kritis" || s.status === "Mendekati Minimum") && (
-              <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shadow-xs">
-                <div className="flex items-start gap-3">
-                  <AlertOctagon className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-                  <div>
-                    <h4 className="text-sm font-semibold text-amber-900">
-                      Peringatan Kebutuhan Stok (Restock Trigger)
-                    </h4>
-                    <p className="text-xs text-amber-700 mt-0.5">
-                      Sistem mendeteksi <strong>{stockItems.filter(s => s.status === "Kritis").length} bahan kritis</strong> dan <strong>{stockItems.filter(s => s.status === "Mendekati Minimum").length} bahan mendekati batas minimum</strong>.
-                    </p>
+              <div className="bg-gradient-to-r from-amber-50/90 via-orange-50/60 to-amber-50/90 border border-amber-200 rounded-xl p-4 md:p-5 shadow-xs space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/70 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-1.5 bg-amber-100 text-amber-700 rounded-lg">
+                      <AlertOctagon className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-bold text-amber-950">
+                        Peringatan Kebutuhan Stok (Restock Trigger)
+                      </h4>
+                      <p className="text-xs text-amber-800 mt-0.5">
+                        Sistem mendeteksi <strong>{stockItems.filter(s => s.status === "Kritis").length} bahan kritis</strong> dan <strong>{stockItems.filter(s => s.status === "Mendekati Minimum").length} bahan mendekati batas minimum</strong>.
+                      </p>
+                    </div>
                   </div>
+                  <span className="text-[11px] font-medium text-amber-800 bg-amber-100/80 px-2.5 py-1 rounded-md border border-amber-200 w-max">
+                    Klik item untuk auto-fill form restock
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 overflow-x-auto">
+
+                {/* Grid 3 Kolom - Terbuka Semua Tanpa Swipe */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {stockItems.filter(s => s.status !== "Aman").map(item => (
-                    <button
+                    <div
                       key={item.id}
-                      onClick={() => triggerRestockForm(item)}
-                      className="px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-medium text-amber-900 hover:bg-amber-100 transition-colors flex items-center gap-1.5 whitespace-nowrap shadow-2xs"
+                      className="bg-white rounded-xl border border-amber-200/90 p-3.5 shadow-2xs hover:shadow-sm hover:border-amber-300 transition-all flex flex-col justify-between gap-2.5"
                     >
-                      <span>{item.name}</span>
-                      <Badge variant={item.status === "Kritis" ? "destructive" : "warning"} className="text-[10px] px-1 py-0 h-4">
-                        Sisa {item.currentStock} {item.unit}
-                      </Badge>
-                      <ArrowRight size={12} className="text-amber-600" />
-                    </button>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            {item.category}
+                          </span>
+                          <Badge 
+                            variant={item.status === "Kritis" ? "destructive" : "warning"} 
+                            className="text-[10px] px-1.5 py-0 h-4 font-bold"
+                          >
+                            {item.status === "Kritis" ? "🔴 Kritis" : "🟡 Menipis"}
+                          </Badge>
+                        </div>
+                        <h5 className="text-xs font-bold text-slate-800 line-clamp-1">
+                          {item.name}
+                        </h5>
+                        <div className="text-[11px] text-slate-600 flex items-center justify-between pt-1">
+                          <span>Sisa: <strong className={item.status === "Kritis" ? "text-rose-600" : "text-amber-700"}>{item.currentStock} {item.unit}</strong></span>
+                          <span className="text-slate-400">Batas Aman: {item.minStock} {item.unit}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => triggerRestockForm(item)}
+                        className="w-full mt-1 py-1.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <span>⚡ Buat PO Restock ({item.recommendedRestock} {item.unit})</span>
+                        <ArrowRight size={13} className="text-amber-600" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
