@@ -6,7 +6,8 @@ import {
   ClipboardList, Plus, Search, Sparkles, Clock, MapPin, 
   Phone, User, CheckCircle2, AlertTriangle, Eye, Edit2, 
   Trash2, X, FileText, ArrowRight, ShieldCheck, Check,
-  Camera, Upload, ImageIcon, Warehouse, ShoppingBag, Hammer
+  Camera, Upload, ImageIcon, Warehouse, ShoppingBag, Hammer,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -338,28 +339,75 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Permintaan Tanggal Kirim</label>
+                <label className="font-bold text-slate-700 block mb-1 flex items-center gap-1.5">
+                  <Calendar size={13} className="text-indigo-600" />
+                  Permintaan Tanggal Kirim
+                </label>
                 <input
-                  type="text"
-                  placeholder="e.g. 30 Agustus 2026"
+                  type="date"
+                  min={new Date().toISOString().split("T")[0]}
                   value={newOrder.requestDate || ""}
                   onChange={(e) => setNewOrder({ ...newOrder, requestDate: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg p-2"
+                  className="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs cursor-pointer focus:ring-1 focus:ring-indigo-500"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {newOrder.requestDate 
+                    ? `📅 Target: ${new Date(newOrder.requestDate + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}` 
+                    : "Pilih tanggal dari kalender, atau kosongkan jika tidak ada permintaan khusus."}
+                </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Gambar Kerja Teknis (Blueprint)</label>
-                <select
-                  value={newOrder.hasBlueprint ? "ada" : "belum"}
-                  onChange={(e) => setNewOrder({ ...newOrder, hasBlueprint: e.target.value === "ada" })}
-                  className="w-full border border-slate-300 rounded-lg p-2 bg-white"
-                >
-                  <option value="ada">Ada / Lengkap (Siap Dikerjakan Pabrik)</option>
-                  <option value="belum">Belum Ada (Menyusul dari Arsitek/Konsumen)</option>
-                </select>
+                <label className="font-bold text-slate-700 block mb-1">
+                  Gambar Kerja Teknis (Blueprint)
+                </label>
+                {newOrder.productType === "Ready Stock" ? (
+                  <div className="border border-emerald-200 bg-emerald-50/70 rounded-lg p-2.5 text-xs text-emerald-800 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold block">Tidak Diperlukan (Barang Jadi)</span>
+                      <span className="text-[11px] text-emerald-700">Barang ready di gudang, langsung dialokasikan tanpa gambar kerja.</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-bold shrink-0">
+                      ✓ Ready Stock
+                    </span>
+                  </div>
+                ) : newOrder.productType === "PO Produk Mebel" ? (
+                  <div className="border border-purple-200 bg-purple-50/70 rounded-lg p-2.5 text-xs text-purple-800 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold block">Katalog Supplier (Mebel Jadi)</span>
+                      <span className="text-[11px] text-purple-700">Pengadaan barang jadi langsung dipesan ke supplier eksternal.</span>
+                    </div>
+                    <span className="text-[10px] bg-purple-200 text-purple-900 px-2 py-0.5 rounded font-bold shrink-0">
+                      ✓ Vendor PO
+                    </span>
+                  </div>
+                ) : formSourceType === "Kebutuhan Stok" ? (
+                  <div className="border border-slate-200 bg-slate-50 rounded-lg p-2.5 text-xs text-slate-700 flex items-center justify-between">
+                    <div>
+                      <span className="font-bold block">Standar Model Pabrik</span>
+                      <span className="text-[11px] text-slate-500">Produksi rutin stok display gudang menggunakan spesifikasi standar.</span>
+                    </div>
+                    <span className="text-[10px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded font-bold shrink-0">
+                      ✓ Standar
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      value={newOrder.hasBlueprint ? "ada" : "belum"}
+                      onChange={(e) => setNewOrder({ ...newOrder, hasBlueprint: e.target.value === "ada" })}
+                      className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                    >
+                      <option value="ada">Ada / Lengkap (Siap Dikerjakan Pabrik)</option>
+                      <option value="belum">Belum Ada (Menyusul dari Arsitek/Konsumen)</option>
+                    </select>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Wajib ada gambar kerja arsitek/spesifikasi sebelum mandor pabrik memotong rangka sofa.
+                    </p>
+                  </>
+                )}
               </div>
 
               <div>
@@ -469,7 +517,20 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
                   </TableCell>
                   <TableCell>
                     <div className="font-medium text-slate-800">{order.productName}</div>
-                    <div className="text-[10px] text-slate-400">{order.region}</div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                      <span>{order.region}</span>
+                      {order.requestDate && (
+                        <>
+                          <span>•</span>
+                          <span className="text-indigo-600 font-medium flex items-center gap-0.5" title="Permintaan Tanggal Kirim">
+                            <Calendar size={10} />
+                            {order.requestDate.includes("-") 
+                              ? new Date(order.requestDate + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short" }) 
+                              : order.requestDate}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-[10px] text-slate-600">
@@ -482,15 +543,27 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                      order.sourceType === "Kebutuhan Stok"
-                        ? "bg-slate-100 text-slate-700 border border-slate-200"
-                        : order.hasBlueprint 
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-                        : "bg-red-50 text-red-700 border border-red-200"
-                    }`}>
-                      {order.sourceType === "Kebutuhan Stok" ? "✓ Standar" : order.hasBlueprint ? "✓ Ada" : "⚠ Belum"}
-                    </span>
+                    {order.productType === "Ready Stock" ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        — Ready Stock
+                      </span>
+                    ) : order.productType === "PO Produk Mebel" ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                        — Supplier
+                      </span>
+                    ) : order.sourceType === "Kebutuhan Stok" ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        ✓ Standar
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                        order.hasBlueprint 
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                          : "bg-red-50 text-red-700 border border-red-200"
+                      }`}>
+                        {order.hasBlueprint ? "✓ Ada" : "⚠ Belum"}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -661,6 +734,42 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
                       <option value="Diproses">Diproses</option>
                       <option value="Selesai">Selesai</option>
                     </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1 flex items-center gap-1">
+                      <Calendar size={12} className="text-indigo-600" />
+                      Permintaan Tanggal Kirim
+                    </label>
+                    <input
+                      type="date"
+                      value={editFormData.requestDate || ""}
+                      onChange={(e) => setEditFormData({ ...editFormData, requestDate: e.target.value })}
+                      className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Gambar Kerja (Blueprint)</label>
+                    {editFormData.productType === "Ready Stock" ? (
+                      <div className="p-2 border border-emerald-200 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-medium">
+                        ✓ Tidak Diperlukan (Ready Stock)
+                      </div>
+                    ) : editFormData.productType === "PO Produk Mebel" ? (
+                      <div className="p-2 border border-purple-200 rounded-lg bg-purple-50 text-purple-800 text-[11px] font-medium">
+                        ✓ Katalog Supplier
+                      </div>
+                    ) : (
+                      <select
+                        value={editFormData.hasBlueprint ? "ada" : "belum"}
+                        onChange={(e) => setEditFormData({ ...editFormData, hasBlueprint: e.target.value === "ada" })}
+                        className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                      >
+                        <option value="ada">Ada / Lengkap (Pabrik)</option>
+                        <option value="belum">Belum Ada (Menyusul)</option>
+                      </select>
+                    )}
                   </div>
                 </div>
 
