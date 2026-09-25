@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Warehouse, Plus, Search, Edit2, Trash2, X, AlertTriangle, 
-  ArrowUpDown, CheckCircle2, Package, Sliders
+  ArrowUpDown, CheckCircle2, Package, Sliders, Truck, ArrowRight,
+  ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -19,11 +20,13 @@ interface InventorySectionProps {
 
 export default function InventorySection({ onNotify }: InventorySectionProps) {
   const {
+    orders,
     stockItems,
     createStockItem,
     updateStockItem,
     adjustStock,
     deleteStockItem,
+    releaseToDistribusi,
   } = useOperationsStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -120,9 +123,78 @@ export default function InventorySection({ onNotify }: InventorySectionProps) {
     const matchesCat = categoryFilter === "All" || item.category === categoryFilter;
     return matchesSearch && matchesCat;
   });
+  // Orders waiting at Inventory stage (need allocation + release to Distribusi)
+  const ordersAtInventory = orders.filter(o => o.currentStage === "Inventory");
+
+  const handleReleaseToDistribusi = (orderId: string, spNumber: string) => {
+    releaseToDistribusi(orderId);
+    onNotify?.(`SP ${spNumber} berhasil dialokasikan & diteruskan ke Distribusi!`);
+  };
 
   return (
     <div className="space-y-6">
+      {/* PESANAN MENUNGGU ALOKASI GUDANG */}
+      {ordersAtInventory.length > 0 && (
+        <Card className="shadow-sm border-teal-200 bg-gradient-to-r from-teal-50/80 via-emerald-50/60 to-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-teal-100 text-teal-700 rounded-lg">
+                  <Package size={16} />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900">
+                    Pesanan Menunggu Alokasi Gudang
+                  </CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Barang dari Produksi/Purchasing sudah masuk gudang. Konfirmasi alokasi & release ke Distribusi.
+                  </CardDescription>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-teal-700 bg-teal-100 px-2.5 py-1 rounded-full border border-teal-200">
+                {ordersAtInventory.length} pesanan
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              {ordersAtInventory.map((order) => (
+                <div
+                  key={order.id}
+                  className="bg-white p-3.5 rounded-xl border border-slate-200 flex items-center justify-between hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                      <ClipboardList size={14} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-indigo-700 text-xs">{order.spNumber}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                          {order.productType}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        <span className="font-semibold">{order.customerName}</span> — {order.productName}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleReleaseToDistribusi(order.id, order.spNumber)}
+                    className="bg-teal-600 hover:bg-teal-700 text-white h-8 px-3 text-[11px] font-semibold flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Truck size={13} />
+                    Release ke Distribusi
+                    <ArrowRight size={12} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="shadow-sm border-slate-200">
         <CardHeader className="bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border-b border-slate-200/80 pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

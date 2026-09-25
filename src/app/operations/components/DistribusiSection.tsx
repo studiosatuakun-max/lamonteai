@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Truck, Plus, Search, Clock, MapPin, User, CheckCircle2, 
-  Edit2, Trash2, X, Phone, Calendar, ArrowRight, ShieldCheck
+  Edit2, Trash2, X, Phone, Calendar, ArrowRight, ShieldCheck,
+  ClipboardList, Package
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -19,6 +20,7 @@ interface DistribusiSectionProps {
 
 export default function DistribusiSection({ onNotify }: DistribusiSectionProps) {
   const {
+    orders,
     distributionOrders,
     createDistributionOrder,
     updateDistributionOrder,
@@ -136,8 +138,98 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
     return matchesSearch && matchesStatus;
   });
 
+  // Orders at Distribusi stage that don't have a SJ yet
+  const ordersReadyToShip = orders.filter(o => 
+    o.currentStage === "Distribusi" && 
+    !distributionOrders.find(d => d.relatedSpNumber === o.spNumber)
+  );
+
+  const handleQuickCreateSJ = (order: typeof orders[0]) => {
+    const nextNumber = `SJ-DIST-${String(distributionOrders.length + 1).padStart(3, "0")}`;
+    const newSJ = createDistributionOrder({
+      sjNumber: nextNumber,
+      relatedSpNumber: order.spNumber,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone || "0812-0000-0000",
+      destinationAddress: order.address || "Jakarta",
+      region: order.region || "Dalam Kota",
+      driverName: "Pak Agus",
+      vehiclePlate: "Truk Box Lovise (B 9021 LOV)",
+      scheduledDate: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
+      timeSlot: order.region === "Luar Kota" ? "Khusus Luar Kota" : "Pagi (09:00 - 13:00)",
+      status: "Menunggu Muat",
+      notes: `Auto-generated dari SP ${order.spNumber}`
+    });
+    onNotify?.(`Surat Jalan ${newSJ.sjNumber} otomatis dibuat untuk SP ${order.spNumber}!`);
+  };
+
   return (
     <div className="space-y-6">
+      {/* PESANAN SIAP KIRIM DARI GUDANG */}
+      {ordersReadyToShip.length > 0 && (
+        <Card className="shadow-sm border-blue-200 bg-gradient-to-r from-blue-50/80 via-indigo-50/60 to-white">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
+                  <Package size={16} />
+                </div>
+                <div>
+                  <CardTitle className="text-sm font-bold text-slate-900">
+                    Pesanan Siap Kirim dari Gudang
+                  </CardTitle>
+                  <CardDescription className="text-[11px]">
+                    Inventory sudah release barang. Buat Surat Jalan untuk plotting pengiriman.
+                  </CardDescription>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full border border-blue-200">
+                {ordersReadyToShip.length} pesanan
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-2">
+              {ordersReadyToShip.map((order) => (
+                <div
+                  key={order.id}
+                  className="bg-white p-3.5 rounded-xl border border-slate-200 flex items-center justify-between hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                      <ClipboardList size={14} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-indigo-700 text-xs">{order.spNumber}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                          {order.region}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        <span className="font-semibold">{order.customerName}</span> — {order.productName}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {order.address || "Alamat belum diisi"}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleQuickCreateSJ(order)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-3 text-[11px] font-semibold flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Truck size={13} />
+                    Buat Surat Jalan
+                    <ArrowRight size={12} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="shadow-sm border-slate-200">
         <CardHeader className="bg-gradient-to-r from-blue-50 via-indigo-50/50 to-white border-b border-slate-200/80 pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">

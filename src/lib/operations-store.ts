@@ -124,6 +124,9 @@ export function useOperationsStore() {
   // ==========================================
   // 1. SALES ORDER CRUD
   // ==========================================
+  // ==========================================
+  // CREATE ORDER: Always starts at "Kepala Toko"
+  // ==========================================
   const createOrder = useCallback((payload: Partial<SalesOrder>) => {
     const timestamp = new Date().toISOString();
     const formattedDate = new Date().toLocaleDateString("id-ID", {
@@ -144,7 +147,8 @@ export function useOperationsStore() {
       region: payload.region || "Dalam Kota",
       requestDate: payload.requestDate || formattedDate,
       hasBlueprint: payload.hasBlueprint ?? true,
-      currentStage: payload.currentStage || (payload.productType === "PO Produk Mebel" ? "Purchasing" : payload.productType === "Ready Stock" ? "Inventory" : "Produksi"),
+      // ALWAYS start at Kepala Toko — Koordinator Toko will classify & forward
+      currentStage: "Kepala Toko",
       status: "Diproses",
       timeline: payload.timeline || [
         {
@@ -161,60 +165,147 @@ export function useOperationsStore() {
       sourceImage: payload.sourceImage,
       createdAt: timestamp,
       updatedAt: timestamp,
-      ...payload
+      ...payload,
+      // Force override even if payload has different stage
+      currentStage: "Kepala Toko" as const,
     };
 
     const nextOrders = [newOrder, ...orders];
     saveOrders(nextOrders);
 
-    // Auto-create linked Production or Purchasing Order for simulation
-    if (newOrder.productType === "PO Sofa") {
+    // NO auto-create SPK/PO here — that happens when Koordinator Toko forwards the order
+    return newOrder;
+  }, [orders, saveOrders]);
+
+  // ==========================================
+  // ADVANCE ORDER FROM TOKO (Klasifikasi & Routing)
+  // This is the KEY workflow function: Koordinator Toko classifies
+  // the order and routes it to the correct division.
+  // ==========================================
+  const advanceOrderFromToko = useCallback((orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order || order.currentStage !== "Kepala Toko") return;
+
+    const timestamp = new Date().toISOString();
+    const formattedDate = new Date().toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+
+    // Determine next stage based on productType (Klasifikasi)
+    let nextStage: SalesOrder["currentStage"];
+    if (order.productType === "Ready Stock") {
+      nextStage = "Inventory";
+    } else if (order.productType === "PO Produk Mebel") {
+      nextStage = "Purchasing";
+    } else {
+      // PO Sofa → Produksi
+      nextStage = "Produksi";
+    }
+
+    // Create timeline event for the forwarding
+    const forwardEvent: TimelineEvent = {
+      id: `tl-fwd-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      division: "Koordinator Toko",
+      title: `Pesanan Diklasifikasi & Diteruskan ke ${nextStage}`,
+      description: `Koordinator Toko mengklasifikasi SP ${order.spNumber} sebagai "${order.productType}" dan meneruskan ke divisi ${nextStage}`,
+      status: "completed",
+      pic: "Koordinator Toko"
+    };
+
+    // Update the order stage
+    const nextOrders = orders.map(o => {
+      if (o.id !== orderId) return o;
+      return {
+        ...o,
+        currentStage: nextStage,
+        timeline: [...o.timeline, forwardEvent],
+        updatedAt: timestamp
+      };
+    });
+    saveOrders(nextOrders);
+
+    // Auto-create linked SPK or PO based on classification
+    if (order.productType === "PO Sofa") {
       const newSpk: ProductionOrder = {
         id: `spk-${Date.now()}`,
         spkNumber: `SPK-PRD-${String(productionOrders.length + 1).padStart(3, "0")}`,
-        relatedSpNumber: newOrder.spNumber,
-        customerName: newOrder.customerName,
-        productName: newOrder.productName,
+        relatedSpNumber: order.spNumber,
+        customerName: order.customerName,
+        productName: order.productName,
         productCategory: "Sofa Custom",
         carpenterPIC: "Pak Joko & Tim Busa",
         startDate: formattedDate,
-        targetDeadline: newOrder.requestDate || "7 Hari Kerja",
+        targetDeadline: order.requestDate || "7 Hari Kerja",
         currentStep: "Potong Rangka",
-        hasBlueprint: !!newOrder.hasBlueprint,
-        blueprintNotes: newOrder.hasBlueprint ? "Gambar kerja teknis terlampir" : "Menunggu gambar arsitek",
+        hasBlueprint: !!order.hasBlueprint,
+        blueprintNotes: order.hasBlueprint ? "Gambar kerja teknis terlampir" : "Menunggu gambar arsitek",
         qcStatus: "Menunggu QC",
         status: "Dalam Proses",
-        notes: newOrder.notes,
+        notes: order.notes,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
       saveProduction([newSpk, ...productionOrders]);
-    } else if (newOrder.productType === "PO Produk Mebel") {
+    } else if (order.productType === "PO Produk Mebel") {
       const newPo: PurchasingOrder = {
         id: `po-${Date.now()}`,
         poNumber: `PO-PUR-${String(purchasingOrders.length + 1).padStart(3, "0")}`,
-        relatedSpNumber: newOrder.spNumber,
-        supplierName: newOrder.supplierName || "PT Indo Kayu Sejahtera",
+        relatedSpNumber: order.spNumber,
+        supplierName: order.supplierName || "PT Indo Kayu Sejahtera",
         supplierPhone: "0812-9988-7766",
-        itemName: newOrder.productName,
+        itemName: order.productName,
         category: "Mebel Jadi",
         quantity: 1,
         unit: "Unit",
         unitPrice: 3500000,
         totalPrice: 3500000,
         orderDate: formattedDate,
-        expectedDeliveryDate: newOrder.requestDate || "5 Hari Kerja",
+        expectedDeliveryDate: order.requestDate || "5 Hari Kerja",
         status: "Dipesan",
         paymentStatus: "DP 50%",
-        notes: `Pengadaan khusus untuk SP ${newOrder.spNumber}`,
+        notes: `Pengadaan khusus untuk SP ${order.spNumber}`,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
       savePurchasing([newPo, ...purchasingOrders]);
     }
+    // Ready Stock: no linked order to create, just goes to Inventory directly
 
-    return newOrder;
+    return nextStage;
   }, [orders, productionOrders, purchasingOrders, saveOrders, saveProduction, savePurchasing]);
+
+  // ==========================================
+  // RELEASE TO DISTRIBUSI (from Inventory)
+  // Inventory confirms goods are allocated and ready for delivery
+  // ==========================================
+  const releaseToDistribusi = useCallback((orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order || order.currentStage !== "Inventory") return;
+
+    const releaseEvent: TimelineEvent = {
+      id: `tl-rel-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      division: "Inventory",
+      title: "Barang Dialokasi & Siap Kirim",
+      description: `Gudang telah mempersiapkan dan mengalokasikan barang untuk SP ${order.spNumber}. Siap diteruskan ke Distribusi.`,
+      status: "completed",
+      pic: "Kepala Gudang"
+    };
+
+    const nextOrders = orders.map(o => {
+      if (o.id !== orderId) return o;
+      return {
+        ...o,
+        currentStage: "Distribusi" as const,
+        timeline: [...o.timeline, releaseEvent],
+        updatedAt: new Date().toISOString()
+      };
+    });
+    saveOrders(nextOrders);
+  }, [orders, saveOrders]);
 
   const updateOrder = useCallback((id: string, updates: Partial<SalesOrder>) => {
     const nextOrders = orders.map((o) => {
@@ -698,6 +789,8 @@ export function useOperationsStore() {
     createOrder,
     updateOrder,
     deleteOrder,
+    advanceOrderFromToko,
+    releaseToDistribusi,
     createPurchasingOrder,
     updatePurchasingOrder,
     receivePurchasingOrder,

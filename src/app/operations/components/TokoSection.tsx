@@ -28,6 +28,7 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
     createOrder,
     updateOrder,
     deleteOrder,
+    advanceOrderFromToko,
   } = useOperationsStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -111,21 +112,10 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
 
   const handleAdvanceStage = (order: SalesOrder) => {
     if (order.currentStage === "Kepala Toko") {
-      const nextStage = order.productType === "PO Produk Mebel" ? "Purchasing" : order.productType === "Ready Stock" ? "Inventory" : "Produksi";
-      const newEvent: TimelineEvent = {
-        id: `tl-adv-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        division: "Koordinator Toko",
-        title: `Pesanan Diteruskan ke ${nextStage}`,
-        description: `SP ${order.spNumber} diteruskan untuk diproses oleh divisi ${nextStage}`,
-        status: "completed",
-        pic: "Koordinator Toko"
-      };
-      updateOrder(order.id, {
-        currentStage: nextStage,
-        timeline: [...order.timeline, newEvent]
-      });
-      onNotify?.(`Pesanan ${order.spNumber} diteruskan ke divisi ${nextStage}!`);
+      const nextStage = advanceOrderFromToko(order.id);
+      if (nextStage) {
+        onNotify?.(`Pesanan ${order.spNumber} diklasifikasi sebagai "${order.productType}" → diteruskan ke divisi ${nextStage}!`);
+      }
     }
   };
 
