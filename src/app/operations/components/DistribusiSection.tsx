@@ -12,7 +12,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOperationsStore } from "@/lib/operations-store";
-import { DistributionOrder } from "@/types/operations";
+import { DistributionOrder, SalesOrder } from "@/types/operations";
+import OrderAuditTrailModal from "./OrderAuditTrailModal";
 
 interface DistribusiSectionProps {
   onNotify?: (msg: string) => void;
@@ -27,6 +28,18 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
     completeDelivery,
     deleteDistributionOrder,
   } = useOperationsStore();
+
+  const [selectedOrderForAudit, setSelectedOrderForAudit] = useState<SalesOrder | null>(null);
+
+  const handleTraceSP = (spNumber?: string) => {
+    if (!spNumber) return;
+    const found = orders.find(o => o.spNumber.toUpperCase() === spNumber.trim().toUpperCase());
+    if (found) {
+      setSelectedOrderForAudit(found);
+    } else {
+      onNotify?.(`Pesanan dengan nomor ${spNumber} tidak ditemukan di sistem.`);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -335,9 +348,15 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
                   </TableCell>
                   <TableCell>
                     {sj.relatedSpNumber ? (
-                      <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200">
-                        {sj.relatedSpNumber}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleTraceSP(sj.relatedSpNumber)}
+                        title="Klik untuk melihat Audit Trail lengkap SP ini"
+                        className="font-mono font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-900 px-2 py-0.5 rounded text-[11px] border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>🔍</span>
+                        <span>{sj.relatedSpNumber}</span>
+                      </button>
                     ) : (
                       <span className="text-slate-400 text-[11px]">-</span>
                     )}
@@ -714,6 +733,12 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
           </div>
         )}
       </AnimatePresence>
+
+      {/* AUDIT TRAIL TRACE MODAL */}
+      <OrderAuditTrailModal
+        order={selectedOrderForAudit}
+        onClose={() => setSelectedOrderForAudit(null)}
+      />
     </div>
   );
 }

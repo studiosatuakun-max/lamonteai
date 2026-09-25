@@ -11,7 +11,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOperationsStore } from "@/lib/operations-store";
-import { PurchasingOrder } from "@/types/operations";
+import { PurchasingOrder, SalesOrder } from "@/types/operations";
+import OrderAuditTrailModal from "./OrderAuditTrailModal";
 
 interface PurchasingSectionProps {
   onNotify?: (msg: string) => void;
@@ -19,6 +20,7 @@ interface PurchasingSectionProps {
 
 export default function PurchasingSection({ onNotify }: PurchasingSectionProps) {
   const {
+    orders,
     purchasingOrders,
     stockItems,
     createPurchasingOrder,
@@ -26,6 +28,18 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
     receivePurchasingOrder,
     deletePurchasingOrder,
   } = useOperationsStore();
+
+  const [selectedOrderForAudit, setSelectedOrderForAudit] = useState<SalesOrder | null>(null);
+
+  const handleTraceSP = (spNumber?: string) => {
+    if (!spNumber) return;
+    const found = orders.find(o => o.spNumber.toUpperCase() === spNumber.trim().toUpperCase());
+    if (found) {
+      setSelectedOrderForAudit(found);
+    } else {
+      onNotify?.(`Pesanan dengan nomor ${spNumber} tidak ditemukan di sistem.`);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -287,9 +301,15 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
                   </TableCell>
                   <TableCell>
                     {po.relatedSpNumber ? (
-                      <span className="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded text-[11px] border border-indigo-200">
-                        {po.relatedSpNumber}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleTraceSP(po.relatedSpNumber)}
+                        title="Klik untuk melihat Audit Trail lengkap SP ini"
+                        className="font-mono font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-900 px-2 py-0.5 rounded text-[11px] border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>🔍</span>
+                        <span>{po.relatedSpNumber}</span>
+                      </button>
                     ) : (
                       <span className="text-slate-400 text-[11px]">Restock Gudang</span>
                     )}
@@ -671,6 +691,12 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
           </div>
         )}
       </AnimatePresence>
+
+      {/* AUDIT TRAIL TRACE MODAL */}
+      <OrderAuditTrailModal
+        order={selectedOrderForAudit}
+        onClose={() => setSelectedOrderForAudit(null)}
+      />
     </div>
   );
 }

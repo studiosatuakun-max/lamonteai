@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useOperationsStore } from "@/lib/operations-store";
-import { DailyReportEntry, AIDigestResult } from "@/types/operations";
+import { DailyReportEntry, AIDigestResult, SalesOrder } from "@/types/operations";
 import { generateDailyDigestAction } from "../actions";
+import OrderAuditTrailModal from "./OrderAuditTrailModal";
 
 interface DailyReportSectionProps {
   onNotify?: (msg: string) => void;
@@ -41,13 +42,24 @@ export default function DailyReportSection({ onNotify }: DailyReportSectionProps
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedReport, setSelectedReport] = useState<DailyReportEntry | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<DailyReportEntry>>({});
+  const [selectedOrderForAudit, setSelectedOrderForAudit] = useState<SalesOrder | null>(null);
+
+  const handleTraceSP = (code: string) => {
+    const cleanCode = code.trim().toUpperCase();
+    const found = orders.find(o => o.spNumber.toUpperCase() === cleanCode);
+    if (found) {
+      setSelectedOrderForAudit(found);
+    } else {
+      onNotify?.(`Pesanan dengan nomor ${code} belum ditemukan atau dibuat melalui SP baru.`);
+    }
+  };
 
   const handleSubmitNewReport = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportText.trim()) return;
 
-    // Detect mentioned SPs
-    const spMatches = reportText.match(/SP-[0-9]{3}/gi) || [];
+    // Detect mentioned SPs, POs, or SPKs
+    const spMatches = reportText.match(/(?:SP|PO|SPK)-[A-Za-z0-9-]+/gi) || [];
     const relatedSP = Array.from(new Set(spMatches.map(s => s.toUpperCase())));
 
     createDailyReport({
@@ -300,12 +312,19 @@ export default function DailyReportSection({ onNotify }: DailyReportSectionProps
                   </p>
 
                   {rep.relatedSP && rep.relatedSP.length > 0 && (
-                    <div className="flex items-center gap-1 pt-1">
+                    <div className="flex items-center gap-1.5 pt-1.5 flex-wrap">
                       <span className="text-[10px] text-slate-400">Terkait:</span>
                       {rep.relatedSP.map((sp) => (
-                        <span key={sp} className="font-mono text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
-                          {sp}
-                        </span>
+                        <button
+                          key={sp}
+                          type="button"
+                          onClick={() => handleTraceSP(sp)}
+                          title="Klik untuk menelusuri audit trail riwayat pesanan ini"
+                          className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-900 px-1.5 py-0.5 rounded border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>🔍</span>
+                          <span>{sp}</span>
+                        </button>
                       ))}
                     </div>
                   )}
@@ -443,6 +462,12 @@ export default function DailyReportSection({ onNotify }: DailyReportSectionProps
           </div>
         )}
       </AnimatePresence>
+
+      {/* AUDIT TRAIL TRACE MODAL */}
+      <OrderAuditTrailModal
+        order={selectedOrderForAudit}
+        onClose={() => setSelectedOrderForAudit(null)}
+      />
     </div>
   );
 }

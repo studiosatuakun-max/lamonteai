@@ -13,8 +13,8 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOperationsStore } from "@/lib/operations-store";
-import { SalesOrder, CreateOrderPayload, TimelineEvent } from "@/types/operations";
 import AISmartOrderParserModal from "./AISmartOrderParserModal";
+import OrderAuditTrailModal from "./OrderAuditTrailModal";
 
 interface TokoSectionProps {
   onNotify?: (msg: string) => void;
@@ -302,15 +302,26 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Kategori Alur Pesanan</label>
+                <label className="font-bold text-slate-700 block mb-1">
+                  {formSourceType === "Kebutuhan Stok" ? "Jenis Pemenuhan Stok" : "Kategori Alur Pesanan"}
+                </label>
                 <select
                   value={newOrder.productType}
                   onChange={(e) => setNewOrder({ ...newOrder, productType: e.target.value as any })}
                   className="w-full border border-slate-300 rounded-lg p-2 bg-white"
                 >
-                  <option value="PO Sofa">PO Sofa Custom (Pabrik Lovise)</option>
-                  <option value="Ready Stock">Ready Stock (Langsung Kirim Gudang)</option>
-                  <option value="PO Produk Mebel">PO Produk Mebel (Supplier Eksternal)</option>
+                  {formSourceType === "Kebutuhan Stok" ? (
+                    <>
+                      <option value="PO Sofa">Produksi Internal (Pabrik Lovise)</option>
+                      <option value="PO Produk Mebel">Pembelian ke Supplier (Purchasing)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="PO Sofa">PO Sofa Custom (Pabrik Lovise)</option>
+                      <option value="Ready Stock">Ready Stock (Langsung Kirim Gudang)</option>
+                      <option value="PO Produk Mebel">PO Produk Mebel (Supplier Eksternal)</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -472,9 +483,13 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
                   </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                      order.hasBlueprint ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"
+                      order.sourceType === "Kebutuhan Stok"
+                        ? "bg-slate-100 text-slate-700 border border-slate-200"
+                        : order.hasBlueprint 
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                        : "bg-red-50 text-red-700 border border-red-200"
                     }`}>
-                      {order.hasBlueprint ? "✓ Ada" : "⚠ Belum"}
+                      {order.sourceType === "Kebutuhan Stok" ? "✓ Standar" : order.hasBlueprint ? "✓ Ada" : "⚠ Belum"}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -703,108 +718,11 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
         )}
       </AnimatePresence>
 
-      {/* TIMELINE MODAL */}
-      <AnimatePresence>
-        {timelineOrder && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden"
-            >
-              <div className="p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-300 border border-indigo-400/30">
-                      Audit Trail Terpusat (Single SP Identity)
-                    </span>
-                    <span className="font-mono font-bold text-amber-300">{timelineOrder.spNumber}</span>
-                  </div>
-                  <h3 className="text-lg font-bold">{timelineOrder.customerName}</h3>
-                  <p className="text-xs text-indigo-200">{timelineOrder.productName} • {timelineOrder.productType}</p>
-                </div>
-                <button
-                  onClick={() => setTimelineOrder(null)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-6 overflow-y-auto space-y-5">
-                {timelineOrder.sourceImage && (
-                  <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
-                    <span className="font-bold text-indigo-950 text-xs flex items-center gap-1.5">
-                      <ImageIcon size={14} className="text-indigo-600" /> Dokumen Fisik / Screenshot Terlampir:
-                    </span>
-                    <div className="relative border border-slate-200 rounded-lg overflow-hidden bg-white max-h-40 flex items-center justify-center p-2">
-                      <img src={timelineOrder.sourceImage} alt="Dokumen SP" className="max-h-36 object-contain rounded" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Wilayah</span>
-                    <span className="font-semibold text-slate-800">{timelineOrder.region}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Posisi Saat Ini</span>
-                    <span className="font-semibold text-indigo-700">{timelineOrder.currentStage}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Status Pesanan</span>
-                    <span className="font-bold text-slate-800">{timelineOrder.status}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Jadwal Kirim</span>
-                    <span className="font-semibold text-slate-800">{timelineOrder.distributionDate || "Belum Terjadwal"}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                    <Clock size={14} className="text-indigo-600" />
-                    Riwayat Perjalanan Pesanan Lintas Divisi
-                  </h4>
-                  
-                  <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                    {timelineOrder.timeline.map((evt, idx) => (
-                      <div key={evt.id || idx} className="relative">
-                        <div className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                          evt.status === "completed" ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white"
-                        }`}>
-                          {evt.status === "completed" ? "✓" : "•"}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold text-slate-800">{evt.title}</span>
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium">
-                              {evt.division}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{evt.description}</p>
-                          <div className="flex items-center gap-3 text-[10px] text-slate-400 mt-1">
-                            <span>🕒 {evt.timestamp}</span>
-                            {evt.pic && <span>👤 PIC: {evt.pic}</span>}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
-                <Button variant="outline" onClick={() => setTimelineOrder(null)} className="text-xs">
-                  Tutup
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* TIMELINE AUDIT TRAIL MODAL */}
+      <OrderAuditTrailModal
+        order={timelineOrder}
+        onClose={() => setTimelineOrder(null)}
+      />
     </div>
   );
 }

@@ -307,6 +307,59 @@ export function useOperationsStore() {
     saveOrders(nextOrders);
   }, [orders, saveOrders]);
 
+  // ==========================================
+  // RECORD RESTOCK COMPLETED (from Inventory)
+  // For "Kebutuhan Stok": goods are recorded as warehouse inventory & order is closed
+  // ==========================================
+  const recordRestockCompleted = useCallback((orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order || order.currentStage !== "Inventory") return;
+
+    const stockEvent: TimelineEvent = {
+      id: `tl-stk-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      division: "Inventory",
+      title: "Dicatat sebagai Persediaan Gudang (Selesai)",
+      description: `Barang pengadaan stok (${order.productName}) telah diverifikasi fisik dan dicatat dalam persediaan gudang. Siap dialokasikan ke pesanan berikutnya.`,
+      status: "completed",
+      pic: "Kepala Gudang"
+    };
+
+    const nextOrders = orders.map(o => {
+      if (o.id !== orderId) return o;
+      return {
+        ...o,
+        currentStage: "Selesai" as const,
+        status: "Selesai" as const,
+        timeline: [...o.timeline, stockEvent],
+        updatedAt: new Date().toISOString()
+      };
+    });
+    saveOrders(nextOrders);
+
+    // Auto increase matching stock item if available
+    const existingStock = stockItems.find(s => 
+      s.name.toLowerCase().includes(order.productName.toLowerCase()) || 
+      order.productName.toLowerCase().includes(s.name.toLowerCase())
+    );
+
+    if (existingStock) {
+      const nextStock = stockItems.map(s => {
+        if (s.id !== existingStock.id) return s;
+        const newQty = s.currentStock + 1;
+        const newStatus: "Aman" | "Mendekati Minimum" | "Kritis" = 
+          newQty >= s.minStock ? "Aman" : newQty >= s.minStock / 2 ? "Mendekati Minimum" : "Kritis";
+        return {
+          ...s,
+          currentStock: newQty,
+          status: newStatus,
+          recommendedRestock: Math.max(0, s.minStock * 2 - newQty)
+        };
+      });
+      saveStock(nextStock);
+    }
+  }, [orders, stockItems, saveOrders, saveStock]);
+
   const updateOrder = useCallback((id: string, updates: Partial<SalesOrder>) => {
     const nextOrders = orders.map((o) => {
       if (o.id !== id) return o;
@@ -791,6 +844,7 @@ export function useOperationsStore() {
     deleteOrder,
     advanceOrderFromToko,
     releaseToDistribusi,
+    recordRestockCompleted,
     createPurchasingOrder,
     updatePurchasingOrder,
     receivePurchasingOrder,

@@ -27,6 +27,7 @@ export default function InventorySection({ onNotify }: InventorySectionProps) {
     adjustStock,
     deleteStockItem,
     releaseToDistribusi,
+    recordRestockCompleted,
   } = useOperationsStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,38 +159,69 @@ export default function InventorySection({ onNotify }: InventorySectionProps) {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-2">
-              {ordersAtInventory.map((order) => (
-                <div
-                  key={order.id}
-                  className="bg-white p-3.5 rounded-xl border border-slate-200 flex items-center justify-between hover:shadow-sm transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                      <ClipboardList size={14} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-indigo-700 text-xs">{order.spNumber}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
-                          {order.productType}
-                        </span>
+              {ordersAtInventory.map((order) => {
+                const isRestock = order.sourceType === "Kebutuhan Stok";
+                return (
+                  <div
+                    key={order.id}
+                    className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:shadow-sm transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${isRestock ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600"}`}>
+                        {isRestock ? <Warehouse size={15} /> : <ClipboardList size={15} />}
                       </div>
-                      <p className="text-xs text-slate-600 mt-0.5">
-                        <span className="font-semibold">{order.customerName}</span> — {order.productName}
-                      </p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-indigo-700 text-xs">{order.spNumber}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                            isRestock ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800"
+                          }`}>
+                            {order.sourceType}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
+                            {order.productType}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          <span className="font-semibold">{order.customerName}</span> — {order.productName}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {isRestock 
+                            ? "Pengadaan stok internal → catat sebagai persediaan gudang & tutup pesanan." 
+                            : "Pesanan konsumen → cek kesesuaian fisik lalu teruskan ke armada distribusi."
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isRestock ? (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            recordRestockCompleted(order.id);
+                            onNotify?.(`Pengadaan stok ${order.spNumber} (${order.productName}) berhasil dicatat sebagai persediaan gudang & SP ditutup!`);
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 px-3 text-[11px] font-semibold flex items-center gap-1.5 shadow-sm"
+                        >
+                          <CheckCircle2 size={13} />
+                          Catat Persediaan (Selesai)
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleReleaseToDistribusi(order.id, order.spNumber)}
+                          className="bg-teal-600 hover:bg-teal-700 text-white h-8 px-3 text-[11px] font-semibold flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Truck size={13} />
+                          Release ke Distribusi
+                          <ArrowRight size={12} />
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleReleaseToDistribusi(order.id, order.spNumber)}
-                    className="bg-teal-600 hover:bg-teal-700 text-white h-8 px-3 text-[11px] font-semibold flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Truck size={13} />
-                    Release ke Distribusi
-                    <ArrowRight size={12} />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
