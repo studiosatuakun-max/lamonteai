@@ -36,6 +36,7 @@ export interface SalesOrder {
   status: OrderStatus;
   timeline: TimelineEvent[];
   notes?: string;
+  sourceImage?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +52,7 @@ export interface CreateOrderPayload {
   requestDate?: string;
   hasBlueprint?: boolean;
   notes?: string;
+  sourceImage?: string;
 }
 
 export interface DailyReportEntry {

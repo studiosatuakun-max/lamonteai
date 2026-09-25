@@ -93,6 +93,7 @@ export async function submitOrderToEngine(payload: CreateOrderPayload): Promise<
       status: status,
       timeline: initialTimeline,
       notes: payload.notes,
+      sourceImage: payload.sourceImage,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -245,3 +246,81 @@ export async function generateDailyDigestAction(reports: DailyReportEntry[]): Pr
     return { success: false, message: "Gagal membuat daily digest", error: err.message };
   }
 }
+
+/**
+ * Server Action for AI Multimodal Vision Parser:
+ * Simulates Gemini Vision OCR analyzing an uploaded image, screenshot, or camera capture
+ * of a WhatsApp chat, invoice, or handwritten sales order form.
+ */
+export async function parseOrderFromImage(payload: {
+  imageData?: string;
+  fileName?: string;
+  samplePreset?: "wa_screenshot" | "paper_sp";
+}): Promise<ActionResponse<Partial<CreateOrderPayload>>> {
+  try {
+    // Delay 1.5 detik untuk simulasi Gemini Multimodal Vision reasoning & OCR
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    if (payload.samplePreset === "wa_screenshot" || (payload.fileName && payload.fileName.toLowerCase().includes("wa"))) {
+      return {
+        success: true,
+        message: "Gemini Vision berhasil membaca Screenshot WhatsApp konsumen!",
+        data: {
+          sourceType: "Pesanan Konsumen",
+          customerName: "Ibu Dian Permata Sari",
+          customerPhone: "081288991122",
+          address: "Jl. Senopati No. 88, Kebayoran Baru, Jakarta Selatan",
+          productName: "Sofa L-Shape Modular Velvet Emerald (280x180cm)",
+          productType: "PO Sofa",
+          region: "Dalam Kota",
+          requestDate: "2026-08-30",
+          hasBlueprint: true,
+          notes: "Diekstrak otomatis via Gemini Vision (Screenshot WhatsApp): Warna Emerald Green Velvet, busa kenyal medium-soft.",
+          sourceImage: payload.imageData,
+        }
+      };
+    }
+
+    if (payload.samplePreset === "paper_sp" || (payload.fileName && (payload.fileName.toLowerCase().includes("sp") || payload.fileName.toLowerCase().includes("nota")))) {
+      return {
+        success: true,
+        message: "Gemini Vision berhasil mendigitalkan Foto Formulir SP Kertas Manual!",
+        data: {
+          sourceType: "Pesanan Konsumen",
+          customerName: "Bpk. Hendra Gunawan",
+          customerPhone: "081377889900",
+          address: "Sentul Alaya Cluster Victoria Blok D-15, Bogor",
+          productName: "Sofa Chesterfield 3 Seater Classic Brown Leather",
+          productType: "PO Sofa",
+          region: "Luar Kota",
+          requestDate: "2026-09-05",
+          hasBlueprint: false,
+          notes: "Diekstrak otomatis via Gemini Vision (Foto Nota SP Fisik No. 092): Gambar kerja sudut L masih menunggu arsitek.",
+          sourceImage: payload.imageData,
+        }
+      };
+    }
+
+    // Default uploaded image / camera capture
+    return {
+      success: true,
+      message: "Gemini Multimodal Vision berhasil mengekstrak dokumen gambar ke formulir!",
+      data: {
+        sourceType: "Pesanan Konsumen",
+        customerName: "Ibu Maya Anggraini",
+        customerPhone: "081922334455",
+        address: "Apartemen Pakubuwono Terrace Tower B Lt. 12, Jaksel",
+        productName: "Sofa Bed Lipat Scandinavian Minimalis 2S",
+        productType: "Ready Stock",
+        region: "Dalam Kota",
+        requestDate: "2026-08-28",
+        hasBlueprint: true,
+        notes: `Diekstrak via Gemini Vision dari dokumen: ${payload.fileName || "Tangkapan Kamera HP / Screenshot"}`,
+        sourceImage: payload.imageData,
+      }
+    };
+  } catch (err: any) {
+    return { success: false, message: "Gagal memproses gambar dokumen", error: err.message };
+  }
+}
+
