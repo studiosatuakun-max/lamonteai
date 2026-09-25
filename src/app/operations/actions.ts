@@ -34,10 +34,18 @@ export async function submitOrderToEngine(payload: CreateOrderPayload): Promise<
     let currentStage: any = "Inventory";
     let status: any = "Pending";
     let purchasingStatus: any = undefined;
+    let productionStage: any = undefined;
 
     if (payload.productType === "PO Sofa") {
-      currentStage = "Kepala Toko";
-      status = payload.hasBlueprint ? "Diproses" : "Blocked";
+      if (payload.sourceType === "Kebutuhan Stok") {
+        // Restock produksi internal → langsung ke Produksi (skip validasi gambar kerja Koordinator Toko)
+        currentStage = "Produksi";
+        status = "Diproses";
+        productionStage = "Potong Rangka";
+      } else {
+        currentStage = "Kepala Toko";
+        status = payload.hasBlueprint ? "Diproses" : "Blocked";
+      }
     } else if (payload.productType === "PO Produk Mebel") {
       currentStage = "Purchasing";
       status = "Pending";
@@ -67,7 +75,7 @@ export async function submitOrderToEngine(payload: CreateOrderPayload): Promise<
         division: currentStage,
         title: `Auto-Routing ke ${currentStage}`,
         description: payload.productType === "PO Sofa" 
-          ? (payload.hasBlueprint ? "Diteruskan ke Koordinator untuk SPK Pabrik" : "Tertahan! Menunggu gambar kerja konsumen")
+          ? (isRestock ? "Diteruskan langsung ke Produksi untuk penjadwalan pengerjaan stok internal" : payload.hasBlueprint ? "Diteruskan ke Koordinator untuk SPK Pabrik" : "Tertahan! Menunggu gambar kerja konsumen")
           : payload.productType === "PO Produk Mebel"
           ? "Diteruskan ke Purchasing untuk penerbitan PO Supplier"
           : "Diteruskan ke Inventory untuk verifikasi ketersediaan fisik",
@@ -89,6 +97,7 @@ export async function submitOrderToEngine(payload: CreateOrderPayload): Promise<
       requestDate: payload.requestDate || "",
       hasBlueprint: payload.hasBlueprint,
       purchasingStatus: purchasingStatus,
+      productionStage: productionStage,
       currentStage: currentStage,
       status: status,
       timeline: initialTimeline,

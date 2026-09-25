@@ -776,6 +776,15 @@ export default function OperationsModule() {
                             </select>
                           </div>
                         </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-700">Alamat Kirim Lengkap</label>
+                          <input 
+                            value={newOrder.address || ""} 
+                            onChange={e => setNewOrder({...newOrder, address: e.target.value})} 
+                            className="w-full mt-1 border border-slate-300 rounded-md px-3 py-1.5 text-xs" 
+                            placeholder="Contoh: Jl. Fatmawati No. 12, Jakarta Selatan" 
+                          />
+                        </div>
                       </>
                     ) : (
                       <div>
@@ -1307,19 +1316,35 @@ export default function OperationsModule() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right pr-4">
-                          <Button
-                            size="sm"
-                            disabled={isProcessing === o.id}
-                            onClick={() => advanceStage(
-                              o.id,
-                              { currentStage: "Distribusi", status: "Pending" },
-                              { division: "Inventory", title: "Verifikasi Fisik Selesai", description: "Barang lolos cek fisik, dipacking, dan diserahkan ke antrean Distribusi", pic: "Agus (Gudang)" }
-                            )}
-                            className="bg-amber-700 hover:bg-amber-800 text-xs h-8"
-                          >
-                            <PackageCheck size={14} className="mr-1.5" />
-                            Konfirmasi: Barang Siap Kirim
-                          </Button>
+                          {o.sourceType === "Kebutuhan Stok" ? (
+                            <Button
+                              size="sm"
+                              disabled={isProcessing === o.id}
+                              onClick={() => advanceStage(
+                                o.id,
+                                { currentStage: "Selesai", status: "Selesai" },
+                                { division: "Inventory", title: "Stok Masuk Gudang (Tercatat)", description: "Barang pengadaan stok dicatat sebagai persediaan gudang. PO Restock ditutup.", pic: "Agus (Gudang)" }
+                              )}
+                              className="bg-emerald-700 hover:bg-emerald-800 text-xs h-8"
+                            >
+                              <PackageCheck size={14} className="mr-1.5" />
+                              Catat Stok Masuk Gudang (Selesai)
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              disabled={isProcessing === o.id}
+                              onClick={() => advanceStage(
+                                o.id,
+                                { currentStage: "Distribusi", status: "Pending" },
+                                { division: "Inventory", title: "Verifikasi Fisik Selesai", description: "Barang lolos cek fisik, dipacking, dan diserahkan ke antrean Distribusi", pic: "Agus (Gudang)" }
+                              )}
+                              className="bg-amber-700 hover:bg-amber-800 text-xs h-8"
+                            >
+                              <PackageCheck size={14} className="mr-1.5" />
+                              Konfirmasi: Barang Siap Kirim
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1928,15 +1953,23 @@ export default function OperationsModule() {
                       <Button
                         size="sm"
                         onClick={() => {
-                          advanceStage(
-                            selectedOrderForTimeline.id,
-                            { currentStage: "Distribusi", status: "Pending" },
-                            { division: "Inventory", title: "Verifikasi Gudang Lengkap", description: "Barang siap kirim diserahkan ke Distribusi", pic: "Agus (Gudang)" }
-                          );
+                          if (selectedOrderForTimeline.sourceType === "Kebutuhan Stok") {
+                            advanceStage(
+                              selectedOrderForTimeline.id,
+                              { currentStage: "Selesai", status: "Selesai" },
+                              { division: "Inventory", title: "Stok Masuk Gudang (Tercatat)", description: "Barang pengadaan stok dicatat sebagai persediaan. PO Restock ditutup.", pic: "Agus (Gudang)" }
+                            );
+                          } else {
+                            advanceStage(
+                              selectedOrderForTimeline.id,
+                              { currentStage: "Distribusi", status: "Pending" },
+                              { division: "Inventory", title: "Verifikasi Gudang Lengkap", description: "Barang siap kirim diserahkan ke Distribusi", pic: "Agus (Gudang)" }
+                            );
+                          }
                         }}
-                        className="bg-amber-700 hover:bg-amber-800 text-white text-xs h-8"
+                        className={selectedOrderForTimeline.sourceType === "Kebutuhan Stok" ? "bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8" : "bg-amber-700 hover:bg-amber-800 text-white text-xs h-8"}
                       >
-                        ⚡ Simulasikan: Siap Kirim
+                        {selectedOrderForTimeline.sourceType === "Kebutuhan Stok" ? "⚡ Simulasikan: Stok Masuk Gudang (Selesai)" : "⚡ Simulasikan: Siap Kirim"}
                       </Button>
                     )}
                     {selectedOrderForTimeline.currentStage === "Distribusi" && selectedOrderForTimeline.status !== "Selesai" && (
