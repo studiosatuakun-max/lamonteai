@@ -26,7 +26,15 @@ export type Order = {
   status: "Pending" | "Production" | "Distribution" | "Procurement";
 };
 
-import { SalesOrder, DailyReportEntry, StockItem, AIDigestResult } from "@/types/operations";
+import { 
+  SalesOrder, 
+  DailyReportEntry, 
+  StockItem, 
+  AIDigestResult,
+  PurchasingOrder,
+  ProductionOrder,
+  DistributionOrder
+} from "@/types/operations";
 
 export type Supplier = {
   id: string;
@@ -65,6 +73,12 @@ export const mockOrders: Order[] = [
 ];
 
 export const mockSalesOrders: SalesOrder[] = [];
+
+export const mockPurchasingOrders: PurchasingOrder[] = [];
+
+export const mockProductionOrders: ProductionOrder[] = [];
+
+export const mockDistributionOrders: DistributionOrder[] = [];
 
 export const mockDailyReports: DailyReportEntry[] = [];
 

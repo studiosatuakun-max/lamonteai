@@ -93,6 +93,70 @@ export interface StockItem {
   recommendedRestock: number;
 }
 
+export interface PurchasingOrder {
+  id: string;
+  poNumber: string; // e.g. PO-PUR-2026-001
+  relatedSpNumber?: string; // Terkait SP Konsumen jika custom
+  supplierName: string;
+  supplierPhone?: string;
+  itemName: string;
+  category: "Busa" | "Kain" | "Kayu" | "Aksesoris & Kaki" | "Mebel Jadi" | "Finishing & Lem";
+  quantity: number;
+  unit: string; // Roll, Lembar, Meter, Batang, Unit, Pcs
+  unitPrice: number;
+  totalPrice: number;
+  orderDate: string;
+  expectedDeliveryDate: string;
+  actualArrivalDate?: string;
+  status: "Draft" | "Dipesan" | "Dalam Pengiriman" | "Tiba di Gudang" | "Dibatalkan";
+  paymentStatus: "Pending" | "DP 50%" | "Lunas";
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductionOrder {
+  id: string;
+  spkNumber: string; // e.g. SPK-PRD-2026-001
+  relatedSpNumber?: string; // Terkait SP Konsumen
+  customerName?: string;
+  productName: string;
+  productCategory: "Sofa Custom" | "Sofa Display Toko" | "Reparasi / Servis";
+  carpenterPIC: string; // Nama Kepala Tukang / Tim
+  startDate: string;
+  targetDeadline: string;
+  actualFinishedDate?: string;
+  currentStep: "Potong Rangka" | "Busa & Pegas" | "Jahit Kain" | "Jok & Upholstery" | "QC & Selesai";
+  hasBlueprint: boolean;
+  blueprintNotes?: string;
+  qcStatus: "Menunggu QC" | "Revisi Pengerjaan" | "Lolos QC (Passed)";
+  qcNotes?: string;
+  status: "Antrean" | "Dalam Proses" | "Terkendala Bahan" | "Selesai";
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DistributionOrder {
+  id: string;
+  sjNumber: string; // e.g. SJ-DIST-2026-001
+  relatedSpNumber: string;
+  customerName: string;
+  customerPhone: string;
+  destinationAddress: string;
+  region: RegionType;
+  driverName: string;
+  vehiclePlate: string; // e.g. Truk Box (B 9021 LOV)
+  scheduledDate: string;
+  timeSlot: "Pagi (09:00 - 13:00)" | "Sore (14:00 - 18:00)" | "Khusus Luar Kota";
+  status: "Menunggu Muat" | "Sedang Di Jalan" | "Terkirim" | "Reschedule";
+  receivedBy?: string;
+  recipientNotes?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ActionResponse<T = any> {
   success: boolean;
   message: string;

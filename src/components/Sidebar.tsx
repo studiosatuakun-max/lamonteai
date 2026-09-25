@@ -14,6 +14,8 @@ import {
   Bell,
   HelpCircle,
   LogOut,
+  ShoppingBag,
+  Hammer
 } from 'lucide-react';
 
 interface NavItem {
@@ -39,9 +41,21 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     key: 'nav-ops',
-    label: 'Operations',
+    label: 'Operations Hub',
     href: '/operations',
     icon: <LayoutDashboard size={18} />,
+  },
+  {
+    key: 'nav-purchasing',
+    label: 'Purchasing',
+    href: '/purchasing',
+    icon: <ShoppingBag size={18} />,
+  },
+  {
+    key: 'nav-produksi',
+    label: 'Produksi Pabrik',
+    href: '/produksi',
+    icon: <Hammer size={18} />,
   },
   {
     key: 'nav-settings',
