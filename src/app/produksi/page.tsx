@@ -56,7 +56,7 @@ export default function ProduksiModulePage() {
               Dashboard Partner Produksi & Pabrik
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              Rekomendasi kapasitas partner produksi, pengendalian 5 tahapan pengerjaan (Kayu Mahoni $\rightarrow$ Busa $\rightarrow$ Jahit $\rightarrow$ Upholstery $\rightarrow$ QC), dan upload foto bukti hasil pengerjaan (WIP).
+              Rekomendasi kapasitas partner produksi, pengendalian 5 tahapan pengerjaan (Kayu Mahoni → Busa → Jahit → Upholstery → QC), dan upload foto bukti hasil pengerjaan (WIP).
             </p>
           </div>
         </div>
