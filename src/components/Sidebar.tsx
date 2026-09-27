@@ -15,7 +15,10 @@ import {
   HelpCircle,
   LogOut,
   ShoppingBag,
-  Hammer
+  Hammer,
+  ClipboardList,
+  Warehouse,
+  Truck
 } from 'lucide-react';
 
 interface NavItem {
@@ -29,33 +32,51 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   {
     key: 'nav-hr',
-    label: 'HR Module',
+    label: '1. HR Manager',
     href: '/hr',
     icon: <Users size={18} />,
   },
   {
     key: 'nav-finance',
-    label: 'Finance (FAT)',
+    label: '2. Finance (FAT)',
     href: '/finance',
     icon: <Briefcase size={18} />,
+  },
+  {
+    key: 'nav-toko',
+    label: '3. Koordinator Toko',
+    href: '/toko',
+    icon: <ClipboardList size={18} />,
+  },
+  {
+    key: 'nav-purchasing',
+    label: '4. Purchasing',
+    href: '/purchasing',
+    icon: <ShoppingBag size={18} />,
+  },
+  {
+    key: 'nav-produksi',
+    label: '5. Produksi Pabrik',
+    href: '/produksi',
+    icon: <Hammer size={18} />,
+  },
+  {
+    key: 'nav-inventory',
+    label: '6. Inventory Gudang',
+    href: '/inventory',
+    icon: <Warehouse size={18} />,
+  },
+  {
+    key: 'nav-distribusi',
+    label: '7. Distribusi',
+    href: '/distribusi',
+    icon: <Truck size={18} />,
   },
   {
     key: 'nav-ops',
     label: 'Operations Hub',
     href: '/operations',
     icon: <LayoutDashboard size={18} />,
-  },
-  {
-    key: 'nav-purchasing',
-    label: 'Purchasing',
-    href: '/purchasing',
-    icon: <ShoppingBag size={18} />,
-  },
-  {
-    key: 'nav-produksi',
-    label: 'Produksi Pabrik',
-    href: '/produksi',
-    icon: <Hammer size={18} />,
   },
   {
     key: 'nav-settings',
@@ -190,22 +211,39 @@ export default function Sidebar() {
           {!collapsed && <span className="flex-1 text-left">Keluar</span>}
         </button>
 
-        {/* User avatar */}
-        <div
-          className={`mt-2 flex items-center gap-2 rounded-lg p-2 hover:bg-muted transition-colors cursor-pointer ${
-            collapsed ? 'justify-center' : ''
-          }`}
-        >
-          <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-700 text-sm">
-            AP
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-sm font-600 text-foreground truncate">Andi Pratama</p>
-              <p className="text-xs text-muted-foreground truncate">HR Manager</p>
+        {/* User avatar / Active Role indicator */}
+        {(() => {
+          const getActiveRole = () => {
+            if (pathname.startsWith('/hr')) return { name: 'Siti Rahma', role: '1. HR Manager', initials: 'SR', color: 'bg-indigo-100 text-indigo-700' };
+            if (pathname.startsWith('/finance')) return { name: 'Hendra Wijaya', role: '2. Finance (FAT)', initials: 'HW', color: 'bg-blue-100 text-blue-700' };
+            if (pathname.startsWith('/toko')) return { name: 'Rina Melati', role: '3. Koordinator Toko', initials: 'RM', color: 'bg-indigo-100 text-indigo-700' };
+            if (pathname.startsWith('/purchasing')) return { name: 'Eko Prasetyo', role: '4. Purchasing Officer', initials: 'EP', color: 'bg-purple-100 text-purple-700' };
+            if (pathname.startsWith('/produksi')) return { name: 'Joko Santoso', role: '5. Kepala Produksi', initials: 'JS', color: 'bg-amber-100 text-amber-700' };
+            if (pathname.startsWith('/inventory')) return { name: 'Dedi Saputra', role: '6. Staff Inventory', initials: 'DS', color: 'bg-emerald-100 text-emerald-700' };
+            if (pathname.startsWith('/distribusi')) return { name: 'Bambang Irawan', role: '7. Distribusi & Logistik', initials: 'BI', color: 'bg-blue-100 text-blue-700' };
+            if (pathname.startsWith('/operations')) return { name: 'Pak Ronald', role: 'Operations Lead (Hub)', initials: 'PR', color: 'bg-orange-100 text-orange-700' };
+            return { name: 'Andi Pratama', role: 'Super Admin', initials: 'AP', color: 'bg-slate-200 text-slate-800' };
+          };
+          const user = getActiveRole();
+          return (
+            <div
+              className={`mt-2 flex items-center gap-2 rounded-lg p-2 bg-slate-50 border border-slate-200/80 transition-colors cursor-pointer ${
+                collapsed ? 'justify-center' : ''
+              }`}
+              title={`Simulasi Role Aktif: ${user.role} (${user.name})`}
+            >
+              <div className={`h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${user.color}`}>
+                {user.initials}
+              </div>
+              {!collapsed && (
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 truncate">{user.name}</p>
+                  <p className="text-[10px] font-semibold text-indigo-700 truncate">{user.role}</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
       </div>
     </aside>
   );

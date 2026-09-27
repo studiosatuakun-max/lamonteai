@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Hammer, CheckCircle2, UserCheck } from "lucide-react";
+import { Truck, CheckCircle2, UserCheck } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
-import ProduksiSection from "../operations/components/ProduksiSection";
+import DistribusiSection from "../operations/components/DistribusiSection";
 
-export default function ProduksiModulePage() {
+export default function DistribusiModulePage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showNotification = (msg: string) => {
@@ -18,9 +18,9 @@ export default function ProduksiModulePage() {
     <AppLayout
       breadcrumbs={[
         { label: "Operations", href: "/operations" },
-        { label: "Role 5: Produksi Pabrik", href: "/produksi" },
+        { label: "Role 7: Distribusi & Logistik", href: "/distribusi" },
       ]}
-      vacancyTitle="Lovise Sofa — Dashboard Produksi Pabrik"
+      vacancyTitle="Lovise Sofa — Dashboard Distribusi & Logistik"
     >
       <div className="p-6 md:p-8 space-y-6">
         {/* Toast Notification */}
@@ -46,23 +46,23 @@ export default function ProduksiModulePage() {
                 Lovise Sofa ERP
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
+              <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200 flex items-center gap-1">
                 <UserCheck size={12} />
-                Role: Kepala Produksi / Partner Pabrik
+                Role: Distribusi & Logistik
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-1 flex items-center gap-2">
-              <Hammer className="h-7 w-7 text-amber-600" />
-              Dashboard Partner Produksi & Pabrik
+              <Truck className="h-7 w-7 text-blue-600" />
+              Dashboard Distribusi & Logistik
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
-              Rekomendasi kapasitas partner produksi, pengendalian 5 tahapan pengerjaan (Kayu Mahoni $\rightarrow$ Busa $\rightarrow$ Jahit $\rightarrow$ Upholstery $\rightarrow$ QC), dan upload foto bukti hasil pengerjaan (WIP).
+              Plotting Surat Jalan (SJ), warning perakitan & packing, pencatatan durasi/petugas Tim GS, armada truk internal vs ekspedisi kargo, serta integrasi WhatsApp blast.
             </p>
           </div>
         </div>
 
-        {/* Produksi Component */}
-        <ProduksiSection onNotify={showNotification} />
+        {/* Distribusi Component */}
+        <DistribusiSection onNotify={showNotification} />
       </div>
     </AppLayout>
   );
