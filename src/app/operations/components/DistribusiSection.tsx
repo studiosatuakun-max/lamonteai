@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Truck, Plus, Search, Clock, MapPin, User, CheckCircle2, 
   Edit2, Trash2, X, Phone, Calendar, ArrowRight, ShieldCheck,
-  ClipboardList, Package
+  ClipboardList, Package, MessageSquare, Send, Wrench, PackageCheck, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -27,6 +27,9 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
     updateDistributionOrder,
     completeDelivery,
     deleteDistributionOrder,
+    updateAssemblyPacking,
+    markWaSentToGS,
+    markWaSentToCustomer,
   } = useOperationsStore();
 
   const [selectedOrderForAudit, setSelectedOrderForAudit] = useState<SalesOrder | null>(null);
@@ -50,6 +53,31 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedSJ, setSelectedSJ] = useState<DistributionOrder | null>(null);
+
+  // Rakit (GS) & Packing Modal State
+  const [isAssemblyModalOpen, setIsAssemblyModalOpen] = useState(false);
+  const [selectedDistributionForAssembly, setSelectedDistributionForAssembly] = useState<DistributionOrder | null>(null);
+  const [assemblyForm, setAssemblyForm] = useState<{
+    assemblyPIC: string;
+    assemblyDurationMinutes: number;
+    assemblyStatus: "Belum Dirakit" | "Sedang Dirakit" | "Selesai Rakit";
+    packingPIC: string;
+    packingDurationMinutes: number;
+    packingStatus: "Belum Dipacking" | "Sedang Dipacking" | "Selesai Packing";
+    shippingType: "Internal" | "Eksternal";
+    expeditionName: string;
+    trackingNumber: string;
+  }>({
+    assemblyPIC: "Bambang & Tim GS",
+    assemblyDurationMinutes: 45,
+    assemblyStatus: "Sedang Dirakit",
+    packingPIC: "Dedi (Packing Gudang)",
+    packingDurationMinutes: 30,
+    packingStatus: "Sedang Dipacking",
+    shippingType: "Internal",
+    expeditionName: "",
+    trackingNumber: ""
+  });
 
   // Form State
   const [formData, setFormData] = useState<Partial<DistributionOrder>>({
@@ -139,6 +167,55 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
     onNotify?.(`Surat Jalan ${selectedSJ.sjNumber} telah dibatalkan & dihapus`);
   };
 
+  const handleOpenAssemblyModal = (sj: DistributionOrder) => {
+    setSelectedDistributionForAssembly(sj);
+    setAssemblyForm({
+      assemblyPIC: sj.assemblyPIC || "Bambang & Rahmat (Tim GS)",
+      assemblyDurationMinutes: sj.assemblyDurationMinutes || 45,
+      assemblyStatus: sj.assemblyStatus || "Sedang Dirakit",
+      packingPIC: sj.packingPIC || "Dedi (Packing Gudang)",
+      packingDurationMinutes: sj.packingDurationMinutes || 30,
+      packingStatus: sj.packingStatus || "Sedang Dipacking",
+      shippingType: sj.shippingType || "Internal",
+      expeditionName: sj.expeditionName || "",
+      trackingNumber: sj.trackingNumber || ""
+    });
+    setIsAssemblyModalOpen(true);
+  };
+
+  const handleSaveAssemblyPacking = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDistributionForAssembly) return;
+
+    updateAssemblyPacking(selectedDistributionForAssembly.id, assemblyForm);
+    setIsAssemblyModalOpen(false);
+    onNotify?.(`Data perakitan (Tim GS) & packing untuk ${selectedDistributionForAssembly.sjNumber} berhasil dicatat!`);
+  };
+
+  const handleSendWaToGS = (dist: DistributionOrder) => {
+    const spNumber = dist.relatedSpNumber;
+    const phone = "6281234567890";
+    const msg = `Halo Tim GS (General Services) Lovise Sofa,%0A%0ABerikut jadwal perakitan sofa besok pagi:%0A• No SP: ${spNumber}%0A• Konsumen: ${dist.customerName}%0A• Alamat: ${dist.destinationAddress}%0A• Jadwal Kirim: ${dist.scheduledDate} (${dist.timeSlot})%0A• Armada/Driver: ${dist.driverName} (${dist.vehiclePlate})%0A%0AMohon persiapkan toolkit dan perlengkapan rakit tepat waktu. Terima kasih!`;
+    
+    markWaSentToGS(dist.id);
+    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+    onNotify?.(`Pesan WhatsApp jadwal perakitan telah dikirimkan ke Tim GS untuk SP ${spNumber}!`);
+  };
+
+  const handleSendWaToCustomer = (dist: DistributionOrder) => {
+    let cleanPhone = (dist.customerPhone || "").replace(/[^0-9]/g, "");
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = "62" + cleanPhone.slice(1);
+    }
+    if (!cleanPhone) cleanPhone = "6281299998888";
+
+    const msg = `Halo Bpk/Ibu ${dist.customerName},%0A%0APesanan sofa Anda (SP ${dist.relatedSpNumber}) telah lolos QC dan dijadwalkan untuk dikirim pada:%0A📅 Hari/Tanggal: ${dist.scheduledDate}%0A⏰ Waktu: ${dist.timeSlot}%0A🚚 Pengiriman: ${dist.shippingType === "Eksternal" ? (dist.expeditionName || "Ekspedisi Cargo") : "Armada Internal Lovise (" + dist.driverName + ")"}%0A📍 Alamat Tujuan: ${dist.destinationAddress}%0A%0APetugas kami akan menghubungi Anda saat armada bergerak. Terima kasih telah memilih Lovise Sofa!`;
+
+    markWaSentToCustomer(dist.id);
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, "_blank");
+    onNotify?.(`Pemberitahuan jadwal kirim berhasil dikirimkan via WhatsApp ke konsumen ${dist.customerName}!`);
+  };
+
   // Filtered List
   const filteredOrders = distributionOrders.filter((sj) => {
     const matchesSearch = 
@@ -150,6 +227,14 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
     const matchesStatus = statusFilter === "All" || sj.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Orders needing Rakit (GS) & Packing
+  const ordersNeedingAssemblyPacking = distributionOrders.filter(d => 
+    d.status !== "Terkirim" && (
+      !d.assemblyStatus || d.assemblyStatus !== "Selesai Rakit" ||
+      !d.packingStatus || d.packingStatus !== "Selesai Packing"
+    )
+  );
 
   // Orders at Distribusi stage that don't have a SJ yet
   const ordersReadyToShip = orders.filter(o => 
@@ -178,6 +263,131 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
 
   return (
     <div className="space-y-6">
+      {/* WARNING OTOMATIS: RAKIT (TIM GS) & PACKING */}
+      {ordersNeedingAssemblyPacking.length > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50/50 to-white p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-amber-200">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-amber-500 text-white rounded-lg">
+                <AlertTriangle size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide flex items-center gap-1.5">
+                  Peringatan Otomatis: Proses Rakit (Tim GS) & Packing Diperlukan
+                  <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">
+                    {ordersNeedingAssemblyPacking.length} Pesanan Menunggu
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-600">
+                  Pesanan telah lolos QC dan jadwal pengiriman sudah diplot. Wajib diselesaikan oleh Petugas Rakit (Tim GS) & Petugas Packing sebelum armada muat.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {ordersNeedingAssemblyPacking.map((sj) => (
+              <div
+                key={sj.id}
+                className="bg-white p-3.5 rounded-xl border border-amber-200 shadow-xs flex flex-col justify-between space-y-2.5"
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-indigo-700 text-xs">{sj.sjNumber} • {sj.relatedSpNumber}</span>
+                    <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
+                      Jadwal: {sj.scheduledDate} ({sj.timeSlot})
+                    </span>
+                  </div>
+                  <h5 className="font-bold text-slate-800 text-xs mt-1">{sj.customerName}</h5>
+                  <p className="text-[11px] text-slate-500 truncate">{sj.destinationAddress}</p>
+
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 text-[11px]">
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium flex items-center gap-1">
+                          <Wrench size={12} className="text-amber-600" />
+                          Rakit (GS):
+                        </span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                          sj.assemblyStatus === "Selesai Rakit" 
+                            ? "bg-emerald-100 text-emerald-800" 
+                            : "bg-amber-100 text-amber-800"
+                        }`}>
+                          {sj.assemblyStatus || "Belum Dirakit"}
+                        </span>
+                      </div>
+                      <div className="font-bold text-slate-800 mt-1 truncate">{sj.assemblyPIC || "Tim GS"}</div>
+                      <span className="text-[10px] text-slate-400 block">{sj.assemblyDurationMinutes || 0} menit</span>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-medium flex items-center gap-1">
+                          <PackageCheck size={12} className="text-blue-600" />
+                          Packing:
+                        </span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                          sj.packingStatus === "Selesai Packing" 
+                            ? "bg-emerald-100 text-emerald-800" 
+                            : "bg-blue-100 text-blue-800"
+                        }`}>
+                          {sj.packingStatus || "Belum Dipacking"}
+                        </span>
+                      </div>
+                      <div className="font-bold text-slate-800 mt-1 truncate">{sj.packingPIC || "Staf Packing"}</div>
+                      <span className="text-[10px] text-slate-400 block">{sj.packingDurationMinutes || 0} menit</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ACTION BUTTONS & WHATSAPP */}
+                <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      onClick={() => handleSendWaToGS(sj)}
+                      className={`text-[10px] h-7 px-2 flex items-center gap-1 ${
+                        sj.waSentToGS 
+                          ? "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300" 
+                          : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                      }`}
+                      title="Kirim pesan WhatsApp ke Tim GS mengenai jadwal perakitan besok pagi"
+                    >
+                      <MessageSquare size={11} />
+                      {sj.waSentToGS ? "WA GS ✓" : "WA ke Tim GS"}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={() => handleSendWaToCustomer(sj)}
+                      className={`text-[10px] h-7 px-2 flex items-center gap-1 ${
+                        sj.waSentToCustomer 
+                          ? "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300" 
+                          : "bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs"
+                      }`}
+                      title="Kirim pesan WhatsApp ke konsumen mengenai jadwal pengiriman"
+                    >
+                      <Send size={11} />
+                      {sj.waSentToCustomer ? "WA Konsumen ✓" : "WA ke Konsumen"}
+                    </Button>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleOpenAssemblyModal(sj)}
+                    className="text-[10px] h-7 px-2 border-amber-300 hover:bg-amber-50 text-amber-900 font-semibold"
+                  >
+                    <Wrench size={11} className="mr-1" />
+                    Input Rakit & Packing
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* PESANAN SIAP KIRIM DARI GUDANG */}
       {ordersReadyToShip.length > 0 && (
         <Card className="shadow-sm border-blue-200 bg-gradient-to-r from-blue-50/80 via-indigo-50/60 to-white">
@@ -299,44 +509,116 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50 text-[11px] font-semibold text-slate-500">
-                <TableHead className="pl-4">Nomor SJ</TableHead>
-                <TableHead>Konsumen & Kontak</TableHead>
-                <TableHead>Alamat Tujuan</TableHead>
-                <TableHead>Armada & Supir</TableHead>
-                <TableHead>Jadwal Kirim</TableHead>
-                <TableHead>Status Pengiriman</TableHead>
-                <TableHead>Terkait SP</TableHead>
-                <TableHead className="text-right pr-4">Aksi Logistik & CRUD</TableHead>
+                <TableHead className="pl-4">Nomor SJ & SP</TableHead>
+                <TableHead>Konsumen & Tujuan</TableHead>
+                <TableHead>Armada / Ekspedisi</TableHead>
+                <TableHead>Rakit (Tim GS) & Packing</TableHead>
+                <TableHead>Jadwal & Status Kirim</TableHead>
+                <TableHead>Notifikasi WhatsApp</TableHead>
+                <TableHead className="text-right pr-4">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="text-xs">
               {filteredOrders.map((sj) => (
                 <TableRow key={sj.id} className="hover:bg-slate-50/80 transition-colors">
-                  <TableCell className="pl-4 font-mono font-bold text-blue-700">
-                    {sj.sjNumber}
+                  {/* SJ & SP */}
+                  <TableCell className="pl-4 font-mono">
+                    <div className="font-bold text-blue-700">{sj.sjNumber}</div>
+                    {sj.relatedSpNumber ? (
+                      <button
+                        type="button"
+                        onClick={() => handleTraceSP(sj.relatedSpNumber)}
+                        title="Klik untuk melihat Audit Trail lengkap SP ini"
+                        className="mt-1 font-mono font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-900 px-1.5 py-0.5 rounded text-[10px] border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer w-fit"
+                      >
+                        <span>🔍</span>
+                        <span>{sj.relatedSpNumber}</span>
+                      </button>
+                    ) : (
+                      <span className="text-slate-400 text-[10px]">-</span>
+                    )}
                   </TableCell>
+
+                  {/* KONSUMEN & TUJUAN */}
                   <TableCell>
                     <div className="font-semibold text-slate-800">{sj.customerName}</div>
                     <div className="text-[11px] text-slate-500">{sj.customerPhone || "-"}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-slate-700 text-xs max-w-xs truncate" title={sj.destinationAddress}>
+                    <div className="text-[11px] text-slate-600 max-w-[200px] truncate mt-0.5" title={sj.destinationAddress}>
                       {sj.destinationAddress}
                     </div>
-                    <Badge variant="outline" className="text-[10px] text-slate-500 mt-0.5">
+                    <Badge variant="outline" className="text-[9px] text-slate-500 mt-0.5">
                       {sj.region}
                     </Badge>
                   </TableCell>
+
+                  {/* ARMADA / EKSPEDISI */}
                   <TableCell>
-                    <div className="font-medium text-slate-800">{sj.driverName}</div>
-                    <div className="text-[11px] text-slate-500">{sj.vehiclePlate}</div>
+                    {sj.shippingType === "Eksternal" ? (
+                      <div>
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">
+                          Ekspedisi: {sj.expeditionName || "Cargo"}
+                        </span>
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                          Resi: {sj.trackingNumber || "Belum ada resi"}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="font-medium text-slate-800 flex items-center gap-1">
+                          <Truck size={12} className="text-blue-600" />
+                          <span>{sj.driverName}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500">{sj.vehiclePlate}</div>
+                      </div>
+                    )}
                   </TableCell>
-                  <TableCell className="text-slate-600">
+
+                  {/* RAKIT (TIM GS) & PACKING */}
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 text-[10px]">
+                        <span className="text-slate-500 font-medium flex items-center gap-0.5">
+                          <Wrench size={10} className="text-amber-600" />
+                          Rakit:
+                        </span>
+                        <span className="font-semibold text-slate-700 truncate max-w-[90px]">{sj.assemblyPIC || "Tim GS"}</span>
+                        <span className="text-slate-400">({sj.assemblyDurationMinutes || 0}m)</span>
+                        <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${
+                          sj.assemblyStatus === "Selesai Rakit" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {sj.assemblyStatus === "Selesai Rakit" ? "Selesai" : (sj.assemblyStatus || "Belum")}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[10px]">
+                        <span className="text-slate-500 font-medium flex items-center gap-0.5">
+                          <PackageCheck size={10} className="text-blue-600" />
+                          Packing:
+                        </span>
+                        <span className="font-semibold text-slate-700 truncate max-w-[90px]">{sj.packingPIC || "Staf Packing"}</span>
+                        <span className="text-slate-400">({sj.packingDurationMinutes || 0}m)</span>
+                        <span className={`px-1 py-0.2 rounded text-[9px] font-bold ${
+                          sj.packingStatus === "Selesai Packing" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                        }`}>
+                          {sj.packingStatus === "Selesai Packing" ? "Selesai" : (sj.packingStatus || "Belum")}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => handleOpenAssemblyModal(sj)}
+                        className="text-[10px] text-amber-700 hover:text-amber-900 font-medium flex items-center gap-1 underline cursor-pointer"
+                      >
+                        <Wrench size={10} />
+                        Update Rakit/Packing
+                      </button>
+                    </div>
+                  </TableCell>
+
+                  {/* JADWAL & STATUS */}
+                  <TableCell>
                     <div className="font-medium text-slate-700">{sj.scheduledDate}</div>
                     <div className="text-[10px] text-slate-400">{sj.timeSlot}</div>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
                       sj.status === "Terkirim"
                         ? "bg-emerald-100 text-emerald-800"
                         : sj.status === "Sedang Di Jalan"
@@ -346,23 +628,43 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
                       {sj.status}
                     </span>
                   </TableCell>
+
+                  {/* WHATSAPP */}
                   <TableCell>
-                    {sj.relatedSpNumber ? (
-                      <button
-                        type="button"
-                        onClick={() => handleTraceSP(sj.relatedSpNumber)}
-                        title="Klik untuk melihat Audit Trail lengkap SP ini"
-                        className="font-mono font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 hover:text-indigo-900 px-2 py-0.5 rounded text-[11px] border border-indigo-200 transition-colors flex items-center gap-1 cursor-pointer"
+                    <div className="flex flex-col gap-1 w-28">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSendWaToGS(sj)}
+                        className={`text-[10px] h-6 px-1.5 flex items-center justify-center gap-1 ${
+                          sj.waSentToGS
+                            ? "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        }`}
+                        title="Kirim pesan WhatsApp ke Tim GS mengenai jadwal perakitan"
                       >
-                        <span>🔍</span>
-                        <span>{sj.relatedSpNumber}</span>
-                      </button>
-                    ) : (
-                      <span className="text-slate-400 text-[11px]">-</span>
-                    )}
+                        <MessageSquare size={10} />
+                        <span>{sj.waSentToGS ? "WA GS ✓" : "WA Tim GS"}</span>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() => handleSendWaToCustomer(sj)}
+                        className={`text-[10px] h-6 px-1.5 flex items-center justify-center gap-1 ${
+                          sj.waSentToCustomer
+                            ? "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300"
+                            : "bg-emerald-700 hover:bg-emerald-800 text-white"
+                        }`}
+                        title="Kirim pesan WhatsApp ke konsumen mengenai jadwal pengiriman"
+                      >
+                        <Send size={10} />
+                        <span>{sj.waSentToCustomer ? "WA Konsumen ✓" : "WA Konsumen"}</span>
+                      </Button>
+                    </div>
                   </TableCell>
+
+                  {/* AKSI */}
                   <TableCell className="text-right pr-4">
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-end gap-1">
                       {sj.status !== "Terkirim" && (
                         <Button
                           size="sm"
@@ -396,7 +698,7 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
 
               {filteredOrders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-slate-500 text-xs">
+                  <TableCell colSpan={7} className="text-center py-8 text-slate-500 text-xs">
                     <Truck className="h-7 w-7 text-slate-300 mx-auto mb-1.5" />
                     <p className="font-semibold text-slate-700">Belum ada Surat Jalan (SJ)</p>
                     <p className="text-slate-400 text-[11px]">
@@ -729,6 +1031,264 @@ export default function DistribusiSection({ onNotify }: DistribusiSectionProps) 
                   Ya, Hapus SJ
                 </Button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* RAKIT (TIM GS) & PACKING MODAL */}
+      <AnimatePresence>
+        {isAssemblyModalOpen && selectedDistributionForAssembly && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-200"
+            >
+              <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white p-5 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <Wrench size={18} />
+                    Pencatatan Perakitan (Tim GS) & Packing Barang
+                  </h3>
+                  <p className="text-amber-100 text-xs mt-0.5">
+                    SJ: <span className="font-mono font-bold text-white">{selectedDistributionForAssembly.sjNumber}</span> | SP: <span className="font-mono font-bold text-white">{selectedDistributionForAssembly.relatedSpNumber || "-"}</span> | {selectedDistributionForAssembly.customerName}
+                  </p>
+                </div>
+                <button onClick={() => setIsAssemblyModalOpen(false)} className="text-amber-200 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveAssemblyPacking} className="p-5 space-y-4 text-xs max-h-[80vh] overflow-y-auto">
+                {/* PERAKITAN TIM GS */}
+                <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-900 flex items-center gap-1.5 text-xs">
+                      <Wrench size={14} className="text-amber-700" />
+                      1. Perakitan Barang (Tim GS / General Services)
+                    </span>
+                    <span className="text-[10px] text-amber-700 font-semibold bg-amber-100 px-2 py-0.5 rounded">
+                      Tahap Pasca QC
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">Petugas Rakit (Tim GS)</label>
+                      <input
+                        type="text"
+                        value={assemblyForm.assemblyPIC}
+                        onChange={(e) => setAssemblyForm({ ...assemblyForm, assemblyPIC: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                        placeholder="e.g. Bambang & Rahmat (Tim GS)"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">Durasi Rakit (Menit)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={assemblyForm.assemblyDurationMinutes}
+                        onChange={(e) => setAssemblyForm({ ...assemblyForm, assemblyDurationMinutes: parseInt(e.target.value) || 0 })}
+                        className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                        placeholder="e.g. 45"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Status Perakitan</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["Belum Dirakit", "Sedang Dirakit", "Selesai Rakit"] as const).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setAssemblyForm({ ...assemblyForm, assemblyStatus: st })}
+                          className={`p-2 rounded-lg text-center font-semibold text-xs border transition-all ${
+                            assemblyForm.assemblyStatus === st
+                              ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-amber-300"
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PACKING BARANG */}
+                <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-blue-900 flex items-center gap-1.5 text-xs">
+                      <PackageCheck size={14} className="text-blue-700" />
+                      2. Packing Barang & Proteksi Sofa
+                    </span>
+                    <span className="text-[10px] text-blue-700 font-semibold bg-blue-100 px-2 py-0.5 rounded">
+                      Standard Quality
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">Petugas Packing</label>
+                      <input
+                        type="text"
+                        value={assemblyForm.packingPIC}
+                        onChange={(e) => setAssemblyForm({ ...assemblyForm, packingPIC: e.target.value })}
+                        className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                        placeholder="e.g. Dedi (Gudang Packing)"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-slate-700 block mb-1">Durasi Packing (Menit)</label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={assemblyForm.packingDurationMinutes}
+                        onChange={(e) => setAssemblyForm({ ...assemblyForm, packingDurationMinutes: parseInt(e.target.value) || 0 })}
+                        className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                        placeholder="e.g. 30"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 block mb-1">Status Packing</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["Belum Dipacking", "Sedang Dipacking", "Selesai Packing"] as const).map((st) => (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setAssemblyForm({ ...assemblyForm, packingStatus: st })}
+                          className={`p-2 rounded-lg text-center font-semibold text-xs border transition-all ${
+                            assemblyForm.packingStatus === st
+                              ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                              : "bg-white text-slate-700 border-slate-200 hover:border-blue-300"
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* MODA PENGIRIMAN & EKSPEDISI */}
+                <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-purple-900 flex items-center gap-1.5 text-xs">
+                      <Truck size={14} className="text-purple-700" />
+                      3. Moda Pengiriman & Ekspedisi
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAssemblyForm({ ...assemblyForm, shippingType: "Internal" })}
+                      className={`p-2.5 rounded-lg border text-left font-medium transition-all ${
+                        assemblyForm.shippingType === "Internal"
+                          ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="font-bold text-xs">🚚 Armada Internal Lovise</div>
+                      <div className={`text-[10px] mt-0.5 ${assemblyForm.shippingType === "Internal" ? "text-purple-100" : "text-slate-500"}`}>
+                        Driver internal & truk Lovise
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setAssemblyForm({ ...assemblyForm, shippingType: "Eksternal" })}
+                      className={`p-2.5 rounded-lg border text-left font-medium transition-all ${
+                        assemblyForm.shippingType === "Eksternal"
+                          ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <div className="font-bold text-xs">📦 Ekspedisi / Cargo Eksternal</div>
+                      <div className={`text-[10px] mt-0.5 ${assemblyForm.shippingType === "Eksternal" ? "text-purple-100" : "text-slate-500"}`}>
+                        Dakota, Baraka, Sentral Cargo, JNE
+                      </div>
+                    </button>
+                  </div>
+
+                  {assemblyForm.shippingType === "Eksternal" && (
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="font-semibold text-slate-700 block mb-1">Nama Ekspedisi Cargo</label>
+                        <input
+                          type="text"
+                          value={assemblyForm.expeditionName}
+                          onChange={(e) => setAssemblyForm({ ...assemblyForm, expeditionName: e.target.value })}
+                          className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                          placeholder="e.g. Dakota Cargo / Sentral Cargo"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-semibold text-slate-700 block mb-1">Nomor Resi / AWB</label>
+                        <input
+                          type="text"
+                          value={assemblyForm.trackingNumber}
+                          onChange={(e) => setAssemblyForm({ ...assemblyForm, trackingNumber: e.target.value })}
+                          className="w-full border border-slate-300 rounded-lg p-2 bg-white font-mono"
+                          placeholder="e.g. DKT-88992019"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* NOTIFIKASI WHATSAPP CEPAT */}
+                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="font-bold text-emerald-900 text-xs flex items-center gap-1.5">
+                      <MessageSquare size={13} className="text-emerald-700" />
+                      Blast Jadwal via WhatsApp Otomatis:
+                    </div>
+                    <div className="text-[10px] text-emerald-700 mt-0.5">
+                      Pesan WhatsApp terformat otomatis untuk Tim GS atau Konsumen
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleSendWaToGS(selectedDistributionForAssembly)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] h-7 px-2.5 flex items-center gap-1"
+                    >
+                      <MessageSquare size={11} />
+                      WA Tim GS
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleSendWaToCustomer(selectedDistributionForAssembly)}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] h-7 px-2.5 flex items-center gap-1"
+                    >
+                      <Send size={11} />
+                      WA Konsumen
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+                  <Button type="button" variant="outline" onClick={() => setIsAssemblyModalOpen(false)}>
+                    Batal
+                  </Button>
+                  <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white font-semibold">
+                    Simpan Data Rakit, Packing & Pengiriman
+                  </Button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

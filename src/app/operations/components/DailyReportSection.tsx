@@ -103,7 +103,7 @@ export default function DailyReportSection({ onNotify }: DailyReportSectionProps
   const handleGenerateDigest = async () => {
     setIsGenerating(true);
     try {
-      const res = await generateDailyDigestAction(dailyReports, orders);
+      const res = await generateDailyDigestAction(dailyReports);
       if (res.success && res.data) {
         setAiDigest(res.data);
         onNotify?.("AI Daily Digest berhasil digenerate!");

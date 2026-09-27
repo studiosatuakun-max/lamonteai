@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ShoppingBag, Plus, Search, Clock, Warehouse, Edit2, 
-  Trash2, X, AlertTriangle, ArrowRight, DollarSign
+  Trash2, X, AlertTriangle, ArrowRight, DollarSign,
+  Sparkles, Calculator, CheckCircle2, ShieldCheck, Zap, TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOperationsStore } from "@/lib/operations-store";
 import { PurchasingOrder, SalesOrder } from "@/types/operations";
+import { mockSupplierRecommendations } from "@/lib/dummy-data";
 import OrderAuditTrailModal from "./OrderAuditTrailModal";
 
 interface PurchasingSectionProps {
@@ -30,6 +32,8 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
   } = useOperationsStore();
 
   const [selectedOrderForAudit, setSelectedOrderForAudit] = useState<SalesOrder | null>(null);
+  const [activeAutomationTab, setActiveAutomationTab] = useState<"suppliers" | "restock">("suppliers");
+  const [supplierCategoryFilter, setSupplierCategoryFilter] = useState<string>("All");
 
   const handleTraceSP = (spNumber?: string) => {
     if (!spNumber) return;
@@ -54,16 +58,18 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
   const [formData, setFormData] = useState<Partial<PurchasingOrder>>({
     poNumber: "",
     relatedSpNumber: "",
-    supplierName: "PT Foamindo Abadi",
+    fulfillmentCategory: "Stok",
+    supplierName: "PT Foamindo Prima Industri",
     supplierPhone: "0812-8877-6655",
     itemName: "Busa Rebounded D50",
     category: "Busa",
     quantity: 10,
     unit: "Lembar",
-    unitPrice: 275000,
-    expectedDeliveryDate: "3 Hari Kerja",
+    unitPrice: 265000,
+    expectedDeliveryDate: "2 Hari Kerja",
     status: "Dipesan",
     paymentStatus: "DP 50%",
+    paymentTerms: "Tempo 30 Hari",
     notes: ""
   });
 
@@ -72,16 +78,18 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
     setFormData({
       poNumber: nextNumber,
       relatedSpNumber: "",
-      supplierName: "PT Foamindo Abadi",
+      fulfillmentCategory: "Stok",
+      supplierName: "PT Foamindo Prima Industri",
       supplierPhone: "0812-8877-6655",
       itemName: "Busa Rebounded D50",
       category: "Busa",
       quantity: 10,
       unit: "Lembar",
-      unitPrice: 275000,
-      expectedDeliveryDate: "3 Hari Kerja",
+      unitPrice: 265000,
+      expectedDeliveryDate: "2 Hari Kerja",
       status: "Dipesan",
       paymentStatus: "DP 50%",
+      paymentTerms: "Tempo 30 Hari",
       notes: "",
       ...preset
     });
@@ -146,49 +154,248 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
 
   return (
     <div className="space-y-6">
-      {/* RESTOCK TRIGGER SECTION */}
-      {criticalStockItems.length > 0 && (
-        <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-purple-600" />
-              <h4 className="text-xs font-bold text-purple-900 uppercase tracking-wide">
-                Restock Alert Gudang — Buat PO Instan ke Supplier
-              </h4>
+      {/* AI PURCHASING INTELLIGENCE PANEL */}
+      <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50/80 via-white to-indigo-50/50 p-4 shadow-xs space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-purple-100">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-purple-600 text-white rounded-lg">
+              <Sparkles size={16} />
             </div>
-            <span className="text-[11px] text-purple-600 font-medium">Auto Supply Chain Alert</span>
+            <div>
+              <h4 className="text-xs font-bold text-purple-950 uppercase tracking-wide">
+                Otomasi Purchasing Terpadu (AI Supply Chain)
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Rekomendasi supplier scoring cerdas & kalkulator kebutuhan restock berbasis sales velocity.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-            {criticalStockItems.map((stk) => (
-              <div
-                key={stk.id}
-                className="bg-white p-3 rounded-lg border border-purple-100 shadow-xs flex items-center justify-between"
-              >
-                <div>
-                  <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">{stk.sku}</span>
-                  <p className="font-bold text-slate-800 text-xs truncate max-w-[170px]">{stk.name}</p>
-                  <p className="text-[11px] text-red-600 font-semibold mt-0.5">Sisa: {stk.currentStock} {stk.unit}</p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleOpenCreateModal({
-                    itemName: stk.name,
-                    category: stk.category === "Bahan Baku" ? (stk.name.includes("Busa") ? "Busa" : stk.name.includes("Kain") ? "Kain" : "Kayu") : "Mebel Jadi",
-                    quantity: stk.recommendedRestock || 10,
-                    unit: stk.unit,
-                    notes: `Restock cepat trigger gudang ${stk.sku}`
-                  })}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-[11px] h-7 px-2"
-                >
-                  <Plus size={12} className="mr-1" />
-                  + PO ({stk.recommendedRestock || 5})
-                </Button>
-              </div>
-            ))}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-purple-200 shadow-xs self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setActiveAutomationTab("suppliers")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all ${
+                activeAutomationTab === "suppliers"
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-purple-700 hover:bg-purple-50"
+              }`}
+            >
+              <ShieldCheck size={13} />
+              Rekomendasi Supplier (Scoring)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveAutomationTab("restock")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all ${
+                activeAutomationTab === "restock"
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-slate-600 hover:text-purple-700 hover:bg-purple-50"
+              }`}
+            >
+              <Calculator size={13} />
+              Kalkulator Kebutuhan Restock
+            </button>
           </div>
         </div>
-      )}
+
+        {/* TAB 1: REKOMENDASI SUPPLIER OTOMATIS */}
+        {activeAutomationTab === "suppliers" && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-slate-600">Filter Bahan:</span>
+                {["All", "Busa", "Kayu", "Kain"].map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSupplierCategoryFilter(cat)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                      supplierCategoryFilter === cat
+                        ? "bg-purple-200 text-purple-900 font-bold"
+                        : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[10px] text-purple-700 font-semibold bg-purple-100 px-2 py-0.5 rounded-full">
+                Bobot: Harga (40%) + Lead Time (30%) + Fleksibilitas Tempo (30%)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {mockSupplierRecommendations
+                .filter(s => {
+                  if (supplierCategoryFilter === "All") return true;
+                  if (supplierCategoryFilter === "Busa") return s.name.toLowerCase().includes("busa") || s.name.toLowerCase().includes("foam");
+                  if (supplierCategoryFilter === "Kayu") return s.name.toLowerCase().includes("kayu");
+                  if (supplierCategoryFilter === "Kain") return s.name.toLowerCase().includes("tekstil") || s.name.toLowerCase().includes("kain");
+                  return true;
+                })
+                .map((sup, idx) => (
+                  <div
+                    key={sup.id}
+                    className="bg-white p-3.5 rounded-xl border border-purple-100 shadow-xs hover:border-purple-300 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-1 mb-1">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                              Rank #{idx + 1}
+                            </span>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              Skor {sup.score}/100
+                            </span>
+                          </div>
+                          <h5 className="font-bold text-slate-900 text-xs mt-1">{sup.name}</h5>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 line-clamp-2 my-1.5">{sup.pros}</p>
+
+                      <div className="grid grid-cols-3 gap-1 py-1.5 my-1.5 bg-slate-50 rounded-lg text-center text-[10px] border border-slate-100">
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">Harga Mulai</span>
+                          <span className="font-bold text-slate-800">{formatIDR(sup.pricePerUnit)}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">Lead Time</span>
+                          <span className="font-bold text-indigo-700">{sup.leadTimeDays} Hari Kerja</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">Syarat Bayar</span>
+                          <span className="font-bold text-purple-700 truncate block px-0.5" title={sup.paymentTerms}>
+                            {sup.paymentTerms}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenCreateModal({
+                        supplierName: sup.name,
+                        unitPrice: sup.pricePerUnit,
+                        paymentTerms: sup.paymentTerms,
+                        expectedDeliveryDate: `${sup.leadTimeDays} Hari Kerja`,
+                        fulfillmentCategory: "Stok",
+                        notes: `Rekomendasi Supplier Otomatis (Skor ${sup.score}): ${sup.pros}`
+                      })}
+                      className="w-full mt-2 bg-purple-600 hover:bg-purple-700 text-white text-[11px] h-7 shadow-xs"
+                    >
+                      <Plus size={12} className="mr-1" />
+                      Terapkan & Buat PO
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: KALKULATOR KEBUTUHAN RESTOCK OTOMATIS */}
+        {activeAutomationTab === "restock" && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-600 font-medium">
+                Rumus Otomatis: <strong className="text-slate-800 font-mono">Restock = (Kecepatan Penjualan/Bulan + Min Safety Stock) - Stok Saat Ini</strong>
+              </span>
+              <span className="text-slate-500 font-mono">
+                {stockItems.length} SKU terpantau di gudang
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {stockItems.map(stk => {
+                const velocity = stk.monthlySalesVelocity || 15;
+                const avgBuy = stk.avgMonthlyPurchase || 20;
+                const restockNeeded = Math.max(0, (velocity + stk.minStock) - stk.currentStock);
+                const isUrgent = stk.currentStock <= stk.minStock;
+
+                return (
+                  <div
+                    key={stk.id}
+                    className={`bg-white p-3 rounded-xl border shadow-xs flex flex-col justify-between ${
+                      isUrgent ? "border-rose-200 bg-rose-50/30" : "border-slate-200"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-1">
+                        <div>
+                          <span className="text-[10px] font-mono font-bold text-slate-500 uppercase">{stk.sku}</span>
+                          <h5 className="font-bold text-slate-900 text-xs truncate max-w-[200px]">{stk.name}</h5>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] font-bold ${
+                            stk.status === "Kritis" 
+                              ? "bg-rose-100 text-rose-800 border-rose-200" 
+                              : stk.status === "Mendekati Minimum"
+                              ? "bg-amber-100 text-amber-800 border-amber-200"
+                              : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                          }`}
+                        >
+                          {stk.status}
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-1 py-1.5 my-2 bg-slate-50 rounded-lg text-center text-[10px] border border-slate-100">
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">Stok Fisik</span>
+                          <span className={`font-bold ${isUrgent ? "text-rose-600" : "text-slate-800"}`}>
+                            {stk.currentStock} {stk.unit.split(" ")[0]}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">Safety Min</span>
+                          <span className="font-bold text-slate-700">{stk.minStock}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">Velocity/Bln</span>
+                          <span className="font-bold text-indigo-700 flex items-center justify-center gap-0.5">
+                            <TrendingUp size={10} />
+                            {velocity}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[9px]">Rata Beli</span>
+                          <span className="font-bold text-slate-700">{avgBuy}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-1">
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">Perlu Restock: </span>
+                        <strong className="text-purple-700 font-bold font-mono">
+                          {restockNeeded} {stk.unit}
+                        </strong>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenCreateModal({
+                          itemName: stk.name,
+                          category: stk.category === "Bahan Baku" ? (stk.name.includes("Busa") ? "Busa" : stk.name.includes("Kain") ? "Kain" : "Kayu") : "Mebel Jadi",
+                          quantity: restockNeeded > 0 ? restockNeeded : stk.minStock,
+                          unit: stk.unit,
+                          fulfillmentCategory: "Stok",
+                          notes: `Kalkulator Restock: Velocity ${velocity}/bln, Stok Fisik ${stk.currentStock} ${stk.unit}`
+                        })}
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-[10px] h-6 px-2 shadow-xs"
+                      >
+                        <Plus size={11} className="mr-0.5" />
+                        + PO ({restockNeeded > 0 ? restockNeeded : stk.minStock})
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* PO TABLE WITH FILTERS & SEARCH */}
       <Card className="shadow-sm border-slate-200">
@@ -248,11 +455,12 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
             <TableHeader>
               <TableRow className="bg-slate-50 text-[11px] font-semibold text-slate-500">
                 <TableHead className="pl-4">Nomor PO</TableHead>
+                <TableHead>Kategori</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead>Bahan / Item</TableHead>
                 <TableHead>Kuantitas</TableHead>
                 <TableHead>Total Biaya</TableHead>
-                <TableHead>Estimasi Tiba</TableHead>
+                <TableHead>Lead Time & Syarat Bayar</TableHead>
                 <TableHead>Status PO</TableHead>
                 <TableHead>Terkait SP</TableHead>
                 <TableHead className="text-right pr-4">Aksi Purchasing & CRUD</TableHead>
@@ -262,7 +470,20 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
               {filteredOrders.map((po) => (
                 <TableRow key={po.id} className="hover:bg-slate-50/80 transition-colors">
                   <TableCell className="pl-4 font-mono font-bold text-purple-700">
-                    {po.poNumber}
+                    <div>{po.poNumber}</div>
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                      po.fulfillmentCategory === "Event / Display"
+                        ? "bg-purple-50 text-purple-700 border-purple-200"
+                        : po.fulfillmentCategory === "Komplain"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : po.fulfillmentCategory === "Penjualan"
+                        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    }`}>
+                      {po.fulfillmentCategory || "Stok"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="font-semibold text-slate-800">{po.supplierName}</div>
@@ -281,9 +502,12 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
                     {formatIDR(po.totalPrice || 0)}
                   </TableCell>
                   <TableCell className="text-slate-600">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 font-medium text-slate-800">
                       <Clock size={12} className="text-slate-400" />
                       <span>{po.expectedDeliveryDate}</span>
+                    </div>
+                    <div className="text-[10px] text-purple-700 font-semibold mt-0.5">
+                      {po.paymentTerms || "Tempo 30 Hari"}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -387,7 +611,7 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
               </div>
 
               <form onSubmit={handleSubmitCreate} className="p-5 space-y-3.5 text-xs">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">Nomor PO</label>
                     <input
@@ -399,10 +623,23 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
                     />
                   </div>
                   <div>
+                    <label className="font-bold text-slate-700 block mb-1">Kategori Pemenuhan</label>
+                    <select
+                      value={formData.fulfillmentCategory || "Stok"}
+                      onChange={(e) => setFormData({ ...formData, fulfillmentCategory: e.target.value as any })}
+                      className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                    >
+                      <option value="Stok">PO Pembelian Stok Gudang</option>
+                      <option value="Penjualan">PO Pesanan Penjualan Konsumen</option>
+                      <option value="Event / Display">PO Kebutuhan Event & Display</option>
+                      <option value="Komplain">PO Komplain & Ganti Baru</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="font-bold text-slate-700 block mb-1">Terkait No SP (Opsional)</label>
                     <input
                       type="text"
-                      placeholder="e.g. SP-001 (Kosongkan jika restock)"
+                      placeholder="e.g. SP-001"
                       value={formData.relatedSpNumber || ""}
                       onChange={(e) => setFormData({ ...formData, relatedSpNumber: e.target.value })}
                       className="w-full border border-slate-300 rounded-lg p-2 font-mono"
@@ -444,7 +681,7 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
                     />
                   </div>
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Kategori</label>
+                    <label className="font-bold text-slate-700 block mb-1">Kategori Item</label>
                     <select
                       value={formData.category || "Busa"}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
@@ -507,15 +744,28 @@ export default function PurchasingSection({ onNotify }: PurchasingSectionProps) 
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Target Kedatangan (Lead Time)</label>
+                    <label className="font-bold text-slate-700 block mb-1">Lead Time Sampai Gudang</label>
                     <input
                       type="text"
-                      value={formData.expectedDeliveryDate || "3 Hari Kerja"}
+                      value={formData.expectedDeliveryDate || "2 Hari Kerja"}
                       onChange={(e) => setFormData({ ...formData, expectedDeliveryDate: e.target.value })}
                       className="w-full border border-slate-300 rounded-lg p-2"
                     />
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Syarat Bayar (Terms)</label>
+                    <select
+                      value={formData.paymentTerms || "Tempo 30 Hari"}
+                      onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value as any })}
+                      className="w-full border border-slate-300 rounded-lg p-2 bg-white"
+                    >
+                      <option value="Tempo 30 Hari">Tempo 30 Hari</option>
+                      <option value="Tempo 14 Hari">Tempo 14 Hari</option>
+                      <option value="DP 50%">DP 50%</option>
+                      <option value="Cash On Delivery">Cash On Delivery (COD)</option>
+                    </select>
                   </div>
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">Status Pembayaran</label>

@@ -7,7 +7,8 @@ import {
   PurchasingOrder,
   ProductionOrder,
   DistributionOrder,
-  TimelineEvent
+  TimelineEvent,
+  WIPPhotoRecord
 } from "@/types/operations";
 import { 
   mockSalesOrders, 
@@ -147,8 +148,6 @@ export function useOperationsStore() {
       region: payload.region || "Dalam Kota",
       requestDate: payload.requestDate || formattedDate,
       hasBlueprint: payload.hasBlueprint ?? true,
-      // ALWAYS start at Kepala Toko — Koordinator Toko will classify & forward
-      currentStage: "Kepala Toko",
       status: "Diproses",
       timeline: payload.timeline || [
         {
@@ -227,21 +226,34 @@ export function useOperationsStore() {
     });
     saveOrders(nextOrders);
 
+    // Determine fulfillmentCategory based on order.sourceType
+    let fulfillmentCategory: "Penjualan" | "Event / Display" | "Komplain" | "Stok" = "Penjualan";
+    if (order.sourceType === "Event / Display") {
+      fulfillmentCategory = "Event / Display";
+    } else if (order.sourceType === "Komplain") {
+      fulfillmentCategory = "Komplain";
+    } else if (order.sourceType === "Pembelian Stok" || order.sourceType === "Kebutuhan Stok") {
+      fulfillmentCategory = "Stok";
+    }
+
     // Auto-create linked SPK or PO based on classification
     if (order.productType === "PO Sofa") {
       const newSpk: ProductionOrder = {
         id: `spk-${Date.now()}`,
         spkNumber: `SPK-PRD-${String(productionOrders.length + 1).padStart(3, "0")}`,
         relatedSpNumber: order.spNumber,
+        fulfillmentCategory,
         customerName: order.customerName,
         productName: order.productName,
         productCategory: "Sofa Custom",
+        partnerName: "CV Mebel Kreasi Mandiri (Partner Utama)",
         carpenterPIC: "Pak Joko & Tim Busa",
         startDate: formattedDate,
         targetDeadline: order.requestDate || "7 Hari Kerja",
         currentStep: "Potong Rangka",
         hasBlueprint: !!order.hasBlueprint,
         blueprintNotes: order.hasBlueprint ? "Gambar kerja teknis terlampir" : "Menunggu gambar arsitek",
+        wipPhotos: [],
         qcStatus: "Menunggu QC",
         status: "Dalam Proses",
         notes: order.notes,
@@ -254,6 +266,7 @@ export function useOperationsStore() {
         id: `po-${Date.now()}`,
         poNumber: `PO-PUR-${String(purchasingOrders.length + 1).padStart(3, "0")}`,
         relatedSpNumber: order.spNumber,
+        fulfillmentCategory,
         supplierName: order.supplierName || "PT Indo Kayu Sejahtera",
         supplierPhone: "0812-9988-7766",
         itemName: order.productName,
@@ -266,7 +279,7 @@ export function useOperationsStore() {
         expectedDeliveryDate: order.requestDate || "5 Hari Kerja",
         status: "Dipesan",
         paymentStatus: "DP 50%",
-        notes: `Pengadaan khusus untuk SP ${order.spNumber}`,
+        notes: `Pengadaan khusus untuk SP ${order.spNumber} (${fulfillmentCategory})`,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
@@ -612,6 +625,49 @@ export function useOperationsStore() {
     saveProduction(productionOrders.filter(p => p.id !== id));
   }, [productionOrders, saveProduction]);
 
+  const addWipPhoto = useCallback((productionOrderId: string, photo: Omit<WIPPhotoRecord, "id" | "uploadedAt">) => {
+    const target = productionOrders.find(p => p.id === productionOrderId);
+    if (!target) return;
+
+    const newPhotoRecord: WIPPhotoRecord = {
+      id: `wip-pic-${Date.now()}`,
+      step: photo.step,
+      photoUrl: photo.photoUrl,
+      caption: photo.caption || `Dokumentasi tahap ${photo.step}`,
+      uploadedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      uploadedBy: photo.uploadedBy || "Mandor Pabrik"
+    };
+
+    const nextProduction = productionOrders.map(p => {
+      if (p.id !== productionOrderId) return p;
+      return {
+        ...p,
+        wipPhotos: [...(p.wipPhotos || []), newPhotoRecord],
+        updatedAt: new Date().toISOString()
+      };
+    });
+    saveProduction(nextProduction);
+
+    // If related to SalesOrder, log to order timeline as well
+    if (target.relatedSpNumber) {
+      const order = orders.find(o => o.spNumber === target.relatedSpNumber);
+      if (order) {
+        const photoEvent: TimelineEvent = {
+          id: `tl-wip-photo-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          division: "Produksi",
+          title: `Upload Foto Progres: ${photo.step}`,
+          description: photo.caption || `Dokumentasi visual pengerjaan diupload oleh ${newPhotoRecord.uploadedBy}`,
+          status: "completed",
+          pic: newPhotoRecord.uploadedBy
+        };
+        updateOrder(order.id, {
+          timeline: [...order.timeline, photoEvent]
+        });
+      }
+    }
+  }, [productionOrders, orders, saveProduction, updateOrder]);
+
   // ==========================================
   // 4. INVENTORY CRUD
   // ==========================================
@@ -786,6 +842,119 @@ export function useOperationsStore() {
     saveDistribution(distributionOrders.filter(d => d.id !== id));
   }, [distributionOrders, saveDistribution]);
 
+  const updateAssemblyPacking = useCallback((distributionId: string, data: {
+    assemblyPIC?: string;
+    assemblyDurationMinutes?: number;
+    assemblyStatus?: "Belum Dirakit" | "Sedang Dirakit" | "Selesai Rakit";
+    packingPIC?: string;
+    packingDurationMinutes?: number;
+    packingStatus?: "Belum Dipacking" | "Sedang Dipacking" | "Selesai Packing";
+    shippingType?: "Internal" | "Eksternal";
+    expeditionName?: string;
+    trackingNumber?: string;
+  }) => {
+    const target = distributionOrders.find(d => d.id === distributionId);
+    if (!target) return;
+
+    const nextDistribution = distributionOrders.map(d => {
+      if (d.id !== distributionId) return d;
+      return {
+        ...d,
+        ...data,
+        updatedAt: new Date().toISOString()
+      };
+    });
+    saveDistribution(nextDistribution);
+
+    // Sync to sales order if linked
+    if (target.relatedSpNumber) {
+      const order = orders.find(o => o.spNumber === target.relatedSpNumber);
+      if (order) {
+        const syncUpdates: Partial<SalesOrder> = {};
+        if (data.assemblyPIC !== undefined) syncUpdates.assemblyPIC = data.assemblyPIC;
+        if (data.assemblyDurationMinutes !== undefined) syncUpdates.assemblyDurationMinutes = data.assemblyDurationMinutes;
+        if (data.assemblyStatus !== undefined) syncUpdates.assemblyStatus = data.assemblyStatus;
+        if (data.packingPIC !== undefined) syncUpdates.packingPIC = data.packingPIC;
+        if (data.packingDurationMinutes !== undefined) syncUpdates.packingDurationMinutes = data.packingDurationMinutes;
+        if (data.packingStatus !== undefined) syncUpdates.packingStatus = data.packingStatus;
+
+        if (Object.keys(syncUpdates).length > 0) {
+          updateOrder(order.id, syncUpdates);
+        }
+      }
+    }
+  }, [distributionOrders, orders, saveDistribution, updateOrder]);
+
+  const markWaSentToGS = useCallback((distributionId: string) => {
+    const target = distributionOrders.find(d => d.id === distributionId);
+    if (!target) return;
+
+    const now = new Date().toISOString();
+    const nextDistribution = distributionOrders.map(d => {
+      if (d.id !== distributionId) return d;
+      return {
+        ...d,
+        waSentToGS: true,
+        waSentToGSTimestamp: now,
+        updatedAt: now
+      };
+    });
+    saveDistribution(nextDistribution);
+
+    if (target.relatedSpNumber) {
+      const order = orders.find(o => o.spNumber === target.relatedSpNumber);
+      if (order) {
+        const waEvent: TimelineEvent = {
+          id: `tl-wa-gs-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          division: "Distribusi",
+          title: "Notifikasi WA ke Tim GS Dikirim",
+          description: `Jadwal perakitan pesanan ${order.spNumber} telah dikirimkan via WhatsApp ke General Services (GS)`,
+          status: "completed",
+          pic: "Koordinator Logistik"
+        };
+        updateOrder(order.id, {
+          timeline: [...order.timeline, waEvent]
+        });
+      }
+    }
+  }, [distributionOrders, orders, saveDistribution, updateOrder]);
+
+  const markWaSentToCustomer = useCallback((distributionId: string) => {
+    const target = distributionOrders.find(d => d.id === distributionId);
+    if (!target) return;
+
+    const now = new Date().toISOString();
+    const nextDistribution = distributionOrders.map(d => {
+      if (d.id !== distributionId) return d;
+      return {
+        ...d,
+        waSentToCustomer: true,
+        waSentToCustomerTimestamp: now,
+        updatedAt: now
+      };
+    });
+    saveDistribution(nextDistribution);
+
+    if (target.relatedSpNumber) {
+      const order = orders.find(o => o.spNumber === target.relatedSpNumber);
+      if (order) {
+        const waEvent: TimelineEvent = {
+          id: `tl-wa-cust-${Date.now()}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          division: "Distribusi",
+          title: "Notifikasi WA Jadwal Kirim ke Konsumen",
+          description: `Pemberitahuan jadwal pengiriman telah dikirim ke nomor WhatsApp konsumen (${target.customerPhone})`,
+          status: "completed",
+          pic: "Customer Service / Logistik"
+        };
+        updateOrder(order.id, {
+          timeline: [...order.timeline, waEvent]
+        });
+      }
+    }
+  }, [distributionOrders, orders, saveDistribution, updateOrder]);
+
   // ==========================================
   // 6. DAILY REPORTS CRUD
   // ==========================================
@@ -853,12 +1022,16 @@ export function useOperationsStore() {
     updateProductionOrder,
     advanceProductionStep,
     deleteProductionOrder,
+    addWipPhoto,
     createStockItem,
     updateStockItem,
     adjustStock,
     deleteStockItem,
     createDistributionOrder,
     updateDistributionOrder,
+    updateAssemblyPacking,
+    markWaSentToGS,
+    markWaSentToCustomer,
     completeDelivery,
     deleteDistributionOrder,
     createDailyReport,

@@ -33,7 +33,8 @@ import {
   AIDigestResult,
   PurchasingOrder,
   ProductionOrder,
-  DistributionOrder
+  DistributionOrder,
+  SupplierRecommendation
 } from "@/types/operations";
 
 export type Supplier = {
@@ -92,7 +93,9 @@ export const mockStockItems: StockItem[] = [
     minStock: 10,
     unit: "Lembar",
     status: "Kritis",
-    recommendedRestock: 15
+    recommendedRestock: 16,
+    monthlySalesVelocity: 24, // 24 lembar per bulan
+    avgMonthlyPurchase: 25,
   },
   {
     id: "stk-02",
@@ -103,7 +106,9 @@ export const mockStockItems: StockItem[] = [
     minStock: 4,
     unit: "Roll (50m)",
     status: "Mendekati Minimum",
-    recommendedRestock: 5
+    recommendedRestock: 6,
+    monthlySalesVelocity: 8, // 8 roll per bulan
+    avgMonthlyPurchase: 10,
   },
   {
     id: "stk-03",
@@ -114,7 +119,9 @@ export const mockStockItems: StockItem[] = [
     minStock: 20,
     unit: "Batang",
     status: "Aman",
-    recommendedRestock: 0
+    recommendedRestock: 0,
+    monthlySalesVelocity: 50,
+    avgMonthlyPurchase: 60,
   },
   {
     id: "stk-04",
@@ -125,7 +132,9 @@ export const mockStockItems: StockItem[] = [
     minStock: 3,
     unit: "Unit",
     status: "Aman",
-    recommendedRestock: 0
+    recommendedRestock: 0,
+    monthlySalesVelocity: 6,
+    avgMonthlyPurchase: 8,
   },
   {
     id: "stk-05",
@@ -136,7 +145,9 @@ export const mockStockItems: StockItem[] = [
     minStock: 2,
     unit: "Unit",
     status: "Mendekati Minimum",
-    recommendedRestock: 2
+    recommendedRestock: 2,
+    monthlySalesVelocity: 3,
+    avgMonthlyPurchase: 4,
   }
 ];
 
@@ -151,4 +162,95 @@ export const mockSuppliers: Supplier[] = [
 export const mockProductionJobs: ProductionJob[] = [
   { id: "p1", product: "Meja Kerja", suggestedShift: "Shift 2 (14:00 - 22:00)", efficiencyGain: 15 },
   { id: "p2", product: "Lemari Pakaian", suggestedShift: "Shift 1 (06:00 - 14:00)", efficiencyGain: 8 },
+];
+
+// Rekomendasi Otomatis Supplier Bahan Baku & Mebel Pabrikan
+export const mockSupplierRecommendations: SupplierRecommendation[] = [
+  {
+    id: "sup-01",
+    name: "PT Foamindo Prima Industri",
+    pricePerUnit: 265000,
+    leadTimeDays: 2,
+    paymentTerms: "Tempo 30 Hari",
+    rating: 4.9,
+    score: 96,
+    pros: "Harga terjangkau, tempo 30 hari tanpa bunga, toleransi ketebalan busa sangat presisi."
+  },
+  {
+    id: "sup-02",
+    name: "CV Busa Jaya Sentosa",
+    pricePerUnit: 250000,
+    leadTimeDays: 4,
+    paymentTerms: "DP 50%",
+    rating: 4.4,
+    score: 87,
+    pros: "Harga termurah untuk pemesanan partai besar (>50 lembar), garansi 5 tahun."
+  },
+  {
+    id: "sup-03",
+    name: "Sentral Material Cepat Kilat",
+    pricePerUnit: 285000,
+    leadTimeDays: 1,
+    paymentTerms: "Cash On Delivery",
+    rating: 4.2,
+    score: 80,
+    pros: "Lead time same-day / 1 hari kerja, cocok untuk kebutuhan restock darurat."
+  },
+  {
+    id: "sup-04",
+    name: "PT Indo Kayu Sejahtera",
+    pricePerUnit: 120000,
+    leadTimeDays: 3,
+    paymentTerms: "Tempo 30 Hari",
+    rating: 4.8,
+    score: 94,
+    pros: "Kayu Mahoni & Jati Oven kering standar ekspor, anti rayap, kelurusan 99%."
+  },
+  {
+    id: "sup-05",
+    name: "CV Pelapis Tekstil Nusantara",
+    pricePerUnit: 85000,
+    leadTimeDays: 2,
+    paymentTerms: "Tempo 14 Hari",
+    rating: 4.7,
+    score: 91,
+    pros: "Pilihan kain sofa lengkap (Velvet, Linen, Canvas), water repellent, stok konsisten."
+  }
+];
+
+// Rekomendasi Otomatis Mitra / Partner Produksi Pabrik
+export const mockPartnerRecommendations: SupplierRecommendation[] = [
+  {
+    id: "ptr-01",
+    name: "CV Mebel Kreasi Mandiri (Partner Utama)",
+    pricePerUnit: 3200000,
+    leadTimeDays: 5,
+    paymentTerms: "Tempo 14 Hari",
+    rating: 4.9,
+    capacityAvailable: "8 Slot Tersedia / Minggu",
+    score: 98,
+    pros: "Kerapian jahitan & jok terbaik, pengalaman 10+ tahun produk ekspor, pengerjaan blueprint presisi."
+  },
+  {
+    id: "ptr-02",
+    name: "Workshop Sofa Pak Warno & Rekan",
+    pricePerUnit: 2950000,
+    leadTimeDays: 4,
+    paymentTerms: "DP 50%",
+    rating: 4.6,
+    capacityAvailable: "4 Slot Tersedia / Minggu",
+    score: 90,
+    pros: "Paling cepat menyelesaikan perakitan rangka & busa, spesialis model klasik & minimalis."
+  },
+  {
+    id: "ptr-03",
+    name: "Studio Sofa Modular Sentosa",
+    pricePerUnit: 3400000,
+    leadTimeDays: 7,
+    paymentTerms: "Tempo 30 Hari",
+    rating: 4.7,
+    capacityAvailable: "2 Slot Tersedia (Hampir Penuh)",
+    score: 85,
+    pros: "Spesialis sofa L-Shape & modular ukuran besar, jaminan garansi rangka 2 tahun."
+  }
 ];

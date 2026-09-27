@@ -14,6 +14,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOperationsStore } from "@/lib/operations-store";
+import { OrderSource, CreateOrderPayload, SalesOrder } from "@/types/operations";
 import AISmartOrderParserModal from "./AISmartOrderParserModal";
 import OrderAuditTrailModal from "./OrderAuditTrailModal";
 
@@ -35,10 +36,10 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string>("All");
 
-  // Form State
-  const [formSourceType, setFormSourceType] = useState<"Pesanan Konsumen" | "Kebutuhan Stok">("Pesanan Konsumen");
+  // Form State - 4 Operational Triggers
+  const [formSourceType, setFormSourceType] = useState<OrderSource>("Penjualan");
   const [newOrder, setNewOrder] = useState<CreateOrderPayload>({
-    sourceType: "Pesanan Konsumen",
+    sourceType: "Penjualan",
     customerName: "",
     customerPhone: "",
     address: "",
@@ -47,7 +48,12 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
     region: "Dalam Kota",
     requestDate: "",
     hasBlueprint: true,
-    notes: ""
+    notes: "",
+    eventPIC: "",
+    eventLocation: "",
+    complaintPIC: "",
+    complaintReason: "",
+    complaintOriginalSp: ""
   });
 
   // Modals state
@@ -73,15 +79,24 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
     e.preventDefault();
     if (!newOrder.productName) return;
 
+    let finalCustomerName = newOrder.customerName || "Konsumen Lovise";
+    if (formSourceType === "Pembelian Stok" || (formSourceType as any) === "Kebutuhan Stok") {
+      finalCustomerName = "Internal Restock Gudang";
+    } else if (formSourceType === "Event / Display") {
+      finalCustomerName = newOrder.customerName || (newOrder.eventLocation ? `Event: ${newOrder.eventLocation}` : "Permintaan Event & Display");
+    } else if (formSourceType === "Komplain") {
+      finalCustomerName = newOrder.customerName || "Konsumen Komplain / Garansi";
+    }
+
     const created = createOrder({
       ...newOrder,
       sourceType: formSourceType,
-      customerName: formSourceType === "Kebutuhan Stok" ? "Internal Restock Gudang" : (newOrder.customerName || "Konsumen Lovise")
+      customerName: finalCustomerName
     });
 
     // Reset form
     setNewOrder({
-      sourceType: "Pesanan Konsumen",
+      sourceType: formSourceType,
       customerName: "",
       customerPhone: "",
       address: "",
@@ -90,10 +105,15 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
       region: "Dalam Kota",
       requestDate: "",
       hasBlueprint: true,
-      notes: ""
+      notes: "",
+      eventPIC: "",
+      eventLocation: "",
+      complaintPIC: "",
+      complaintReason: "",
+      complaintOriginalSp: ""
     });
 
-    onNotify?.(`Pesanan ${created.spNumber} (${created.productName}) berhasil diterbitkan!`);
+    onNotify?.(`Pesanan [${formSourceType}] ${created.spNumber} (${created.productName}) berhasil diterbitkan!`);
   };
 
   const handleSubmitEdit = (e: React.FormEvent) => {
@@ -226,43 +246,164 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
 
         <CardContent className="p-5">
           <form onSubmit={handleSubmitNewOrder} className="space-y-4 text-xs">
-            {/* Source Type Selector */}
-            <div className="flex items-center gap-3 pb-3 border-b border-slate-200">
-              <span className="font-bold text-slate-700">Tipe Pemicu:</span>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sourceType"
-                  checked={formSourceType === "Pesanan Konsumen"}
-                  onChange={() => setFormSourceType("Pesanan Konsumen")}
-                  className="text-indigo-600"
-                />
-                <span className="font-medium text-slate-800">Pesanan Konsumen (Toko/Online)</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="radio"
-                  name="sourceType"
-                  checked={formSourceType === "Kebutuhan Stok"}
-                  onChange={() => setFormSourceType("Kebutuhan Stok")}
-                  className="text-indigo-600"
-                />
-                <span className="font-medium text-slate-800">Kebutuhan Stok (Restock Internal)</span>
-              </label>
+            {/* 4 OPERATIONAL TRIGGERS */}
+            <div className="space-y-2 pb-3 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+                  Pemicu Alur Operasional (4 Alur Utama):
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Setiap alur terhubung dengan nomor SP / PO tunggal
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { 
+                    id: "Penjualan", 
+                    label: "1. Data Penjualan", 
+                    desc: "Sales Toko / Konsumen", 
+                  },
+                  { 
+                    id: "Pembelian Stok", 
+                    label: "2. Pembelian Stok", 
+                    desc: "Restock Gudang & Mebel", 
+                  },
+                  { 
+                    id: "Event / Display", 
+                    label: "3. Event / Display", 
+                    desc: "Pameran & Display Toko", 
+                  },
+                  { 
+                    id: "Komplain", 
+                    label: "4. Data Komplain", 
+                    desc: "Garansi / Ganti Baru / Servis", 
+                  },
+                ].map((trigger) => (
+                  <button
+                    key={trigger.id}
+                    type="button"
+                    onClick={() => {
+                      setFormSourceType(trigger.id as OrderSource);
+                      if (trigger.id === "Pembelian Stok") {
+                        setNewOrder(prev => ({ ...prev, customerName: "Internal Restock Gudang" }));
+                      }
+                    }}
+                    className={`p-2.5 rounded-lg border text-left transition-all ${
+                      formSourceType === trigger.id
+                        ? "border-indigo-600 bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-200"
+                        : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    <div className="font-bold text-xs">{trigger.label}</div>
+                    <div className={`text-[10px] mt-0.5 ${formSourceType === trigger.id ? "text-indigo-100" : "text-slate-400"}`}>
+                      {trigger.desc}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* CONDITIONAL EVENT / DISPLAY FIELDS */}
+            {formSourceType === "Event / Display" && (
+              <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-purple-900 block mb-1">
+                    PIC Event / Pameran
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Riko - Tim Marketing Event"
+                    value={newOrder.eventPIC || ""}
+                    onChange={(e) => setNewOrder({ ...newOrder, eventPIC: e.target.value })}
+                    className="w-full border border-purple-200 rounded-lg p-2 bg-white text-xs"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-purple-900 block mb-1">
+                    Lokasi Event / Booth Display
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Mall Gandaria City - Booth Utama Atrium"
+                    value={newOrder.eventLocation || ""}
+                    onChange={(e) => setNewOrder({ ...newOrder, eventLocation: e.target.value })}
+                    className="w-full border border-purple-200 rounded-lg p-2 bg-white text-xs"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* CONDITIONAL KOMPLAIN FIELDS */}
+            {formSourceType === "Komplain" && (
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="font-bold text-amber-900 block mb-1">
+                    PIC Komplain / CS
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sarah - Tim Aftersales Care"
+                    value={newOrder.complaintPIC || ""}
+                    onChange={(e) => setNewOrder({ ...newOrder, complaintPIC: e.target.value })}
+                    className="w-full border border-amber-200 rounded-lg p-2 bg-white text-xs"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-amber-900 block mb-1">
+                    Alasan Komplain / Ganti Baru
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Busa dudukan kempes / Jahitan lepas garansi"
+                    value={newOrder.complaintReason || ""}
+                    onChange={(e) => setNewOrder({ ...newOrder, complaintReason: e.target.value })}
+                    className="w-full border border-amber-200 rounded-lg p-2 bg-white text-xs"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-amber-900 block mb-1">
+                    Referensi SP / PO Lama (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. SP-002"
+                    value={newOrder.complaintOriginalSp || ""}
+                    onChange={(e) => setNewOrder({ ...newOrder, complaintOriginalSp: e.target.value })}
+                    className="w-full border border-amber-200 rounded-lg p-2 bg-white text-xs"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
               <div>
                 <label className="font-bold text-slate-700 block mb-1">
-                  {formSourceType === "Pesanan Konsumen" ? "Nama Konsumen" : "Penanggung Jawab Stok"}
+                  {formSourceType === "Penjualan"
+                    ? "Nama Konsumen"
+                    : formSourceType === "Pembelian Stok"
+                    ? "Penanggung Jawab Stok Gudang"
+                    : formSourceType === "Event / Display"
+                    ? "Nama Acara / Display"
+                    : "Nama Konsumen Komplain"}
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Ibu Dian Permata Sari"
+                  placeholder={
+                    formSourceType === "Pembelian Stok" 
+                      ? "Internal Restock Gudang" 
+                      : formSourceType === "Event / Display" 
+                      ? "Pameran Lovise Interior 2026" 
+                      : "e.g. Ibu Dian Permata Sari"
+                  }
                   value={newOrder.customerName || ""}
                   onChange={(e) => setNewOrder({ ...newOrder, customerName: e.target.value })}
                   className="w-full border border-slate-300 rounded-lg p-2"
-                  required={formSourceType === "Pesanan Konsumen"}
+                  required={formSourceType === "Penjualan"}
                 />
               </div>
 
@@ -278,7 +419,7 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Alamat Kirim</label>
+                <label className="font-bold text-slate-700 block mb-1">Alamat Kirim / Lokasi</label>
                 <input
                   type="text"
                   placeholder="Alamat lengkap tujuan..."
@@ -304,25 +445,16 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1">
-                  {formSourceType === "Kebutuhan Stok" ? "Jenis Pemenuhan Stok" : "Kategori Alur Pesanan"}
+                  Kategori Alur Pesanan (Routing Toko)
                 </label>
                 <select
                   value={newOrder.productType}
                   onChange={(e) => setNewOrder({ ...newOrder, productType: e.target.value as any })}
                   className="w-full border border-slate-300 rounded-lg p-2 bg-white"
                 >
-                  {formSourceType === "Kebutuhan Stok" ? (
-                    <>
-                      <option value="PO Sofa">Produksi Internal (Pabrik Lovise)</option>
-                      <option value="PO Produk Mebel">Pembelian ke Supplier (Purchasing)</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="PO Sofa">PO Sofa Custom (Pabrik Lovise)</option>
-                      <option value="Ready Stock">Ready Stock (Langsung Kirim Gudang)</option>
-                      <option value="PO Produk Mebel">PO Produk Mebel (Supplier Eksternal)</option>
-                    </>
-                  )}
+                  <option value="PO Sofa">Produk PO Produksi (Partner Produksi Pabrik)</option>
+                  <option value="Ready Stock">Produk Ready (Alokasi Bagian Inventory)</option>
+                  <option value="PO Produk Mebel">Produk PO Pabrikan (Bagian Purchasing)</option>
                 </select>
               </div>
 
@@ -509,7 +641,22 @@ export default function TokoSection({ onNotify, onNavigateTab }: TokoSectionProp
               {filteredOrders.map((order) => (
                 <TableRow key={order.id} className="hover:bg-slate-50/80 transition-colors">
                   <TableCell className="pl-4 font-mono font-bold text-indigo-700">
-                    {order.spNumber}
+                    <div>{order.spNumber}</div>
+                    <div className="mt-0.5">
+                      <span className={`inline-block text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                        order.sourceType === "Penjualan"
+                          ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                          : order.sourceType === "Pembelian Stok"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : order.sourceType === "Event / Display"
+                          ? "bg-purple-50 text-purple-700 border border-purple-200"
+                          : order.sourceType === "Komplain"
+                          ? "bg-amber-50 text-amber-700 border border-amber-200"
+                          : "bg-slate-50 text-slate-600 border border-slate-200"
+                      }`}>
+                        {order.sourceType || "Penjualan"}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-semibold text-slate-800">{order.customerName}</div>

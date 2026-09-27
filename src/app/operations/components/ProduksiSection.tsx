@@ -5,14 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Hammer, Plus, Search, Clock, Warehouse, Edit2, 
   Trash2, X, AlertTriangle, ArrowRight, ShieldCheck, CheckCircle2,
-  Layers, UserCheck
+  Layers, UserCheck, Camera, Image as ImageIcon, Sparkles, Building2, Upload, Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useOperationsStore } from "@/lib/operations-store";
-import { ProductionOrder, SalesOrder } from "@/types/operations";
+import { ProductionOrder, SalesOrder, WIPPhotoRecord } from "@/types/operations";
+import { mockPartnerRecommendations } from "@/lib/dummy-data";
 import OrderAuditTrailModal from "./OrderAuditTrailModal";
 
 const PRODUCTION_STEPS: ProductionOrder["currentStep"][] = [
@@ -35,6 +36,7 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
     updateProductionOrder,
     advanceProductionStep,
     deleteProductionOrder,
+    addWipPhoto,
   } = useOperationsStore();
 
   const [selectedOrderForAudit, setSelectedOrderForAudit] = useState<SalesOrder | null>(null);
@@ -58,10 +60,20 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedSPK, setSelectedSPK] = useState<ProductionOrder | null>(null);
 
+  // WIP Photo Modal State
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [photoSPK, setPhotoSPK] = useState<ProductionOrder | null>(null);
+  const [uploadStep, setUploadStep] = useState<ProductionOrder["currentStep"]>("Potong Rangka");
+  const [photoCaption, setPhotoCaption] = useState("");
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [enlargedPhoto, setEnlargedPhoto] = useState<{ url: string; caption?: string; step: string } | null>(null);
+
   // Form State
   const [formData, setFormData] = useState<Partial<ProductionOrder>>({
     spkNumber: "",
     relatedSpNumber: "",
+    fulfillmentCategory: "Penjualan",
+    partnerName: "CV Mebel Kreasi Mandiri (Partner Utama)",
     customerName: "",
     productName: "Sofa Custom Lovise",
     productCategory: "Sofa Custom",
@@ -75,11 +87,13 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
     notes: ""
   });
 
-  const handleOpenCreateModal = () => {
+  const handleOpenCreateModal = (preset?: Partial<ProductionOrder>) => {
     const nextNumber = `SPK-PRD-${String(productionOrders.length + 1).padStart(3, "0")}`;
     setFormData({
       spkNumber: nextNumber,
       relatedSpNumber: "",
+      fulfillmentCategory: "Penjualan",
+      partnerName: "CV Mebel Kreasi Mandiri (Partner Utama)",
       customerName: "",
       productName: "Sofa Chesterfield 3-Seater Classic Brown",
       productCategory: "Sofa Custom",
@@ -90,9 +104,46 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
       blueprintNotes: "Gambar kerja lengkap",
       qcStatus: "Menunggu QC",
       status: "Dalam Proses",
-      notes: ""
+      notes: "",
+      ...preset
     });
     setIsCreateModalOpen(true);
+  };
+
+  const handleOpenPhotoModal = (spk: ProductionOrder) => {
+    setPhotoSPK(spk);
+    setUploadStep(spk.currentStep);
+    setPhotoCaption("");
+    setPreviewPhotoUrl(null);
+    setIsPhotoModalOpen(true);
+  };
+
+  const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewPhotoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveWipPhoto = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!photoSPK || !previewPhotoUrl) return;
+
+    addWipPhoto(photoSPK.id, {
+      step: uploadStep,
+      photoUrl: previewPhotoUrl,
+      caption: photoCaption || `Dokumentasi visual pengerjaan tahap ${uploadStep}`,
+      uploadedBy: "Mandor Pabrik (Pak Joko)"
+    });
+
+    onNotify?.(`Foto progres tahap "${uploadStep}" untuk ${photoSPK.spkNumber} berhasil diunggah!`);
+    setPreviewPhotoUrl(null);
+    setPhotoCaption("");
+    setIsPhotoModalOpen(false);
   };
 
   const handleOpenEditModal = (spk: ProductionOrder) => {
@@ -152,6 +203,81 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
 
   return (
     <div className="space-y-6">
+      {/* PARTNER PRODUKSI RECOMMENDATION & CAPACITY WIDGET */}
+      <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40 p-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-amber-200/80">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-amber-600 text-white rounded-lg">
+              <Building2 size={16} />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                Rekomendasi Partner Produksi (Kapasitas, Lead Time, & Syarat Bayar)
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Pemilihan bengkel sofa terbaik berbasis ketersediaan slot kapasitas, target lead time, dan fleksibilitas tempo.
+              </p>
+            </div>
+          </div>
+          <Badge className="bg-amber-100 text-amber-900 border-amber-300 font-mono text-[10px] self-start sm:self-auto">
+            {mockPartnerRecommendations.length} Mitra Bengkel Terverifikasi
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {mockPartnerRecommendations.map((ptr, idx) => (
+            <div
+              key={ptr.id}
+              className="bg-white p-3.5 rounded-xl border border-amber-100 shadow-xs hover:border-amber-300 transition-all flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-start justify-between gap-1 mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      Partner #{idx + 1}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                      Skor {ptr.score}/100
+                    </span>
+                  </div>
+                </div>
+
+                <h5 className="font-bold text-slate-900 text-xs mt-1">{ptr.name}</h5>
+                <p className="text-[11px] text-slate-500 line-clamp-2 my-1.5">{ptr.pros}</p>
+
+                <div className="grid grid-cols-3 gap-1 py-1.5 my-1.5 bg-slate-50 rounded-lg text-center text-[10px] border border-slate-100">
+                  <div>
+                    <span className="text-slate-400 block text-[9px]">Kapasitas</span>
+                    <span className="font-bold text-emerald-700 block truncate px-0.5">{ptr.capacityAvailable}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[9px]">Lead Time</span>
+                    <span className="font-bold text-amber-800">{ptr.leadTimeDays} Hari Kerja</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[9px]">Syarat Bayar</span>
+                    <span className="font-bold text-slate-800">{ptr.paymentTerms}</span>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                size="sm"
+                onClick={() => handleOpenCreateModal({
+                  partnerName: ptr.name,
+                  targetDeadline: `${ptr.leadTimeDays} Hari Kerja`,
+                  notes: `Dialokasikan ke ${ptr.name}. Keunggulan: ${ptr.pros}`
+                })}
+                className="w-full mt-2 bg-amber-600 hover:bg-amber-700 text-white text-[11px] h-7 shadow-xs"
+              >
+                <Plus size={12} className="mr-1" />
+                Pilih Mitra & Buat SPK
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* SPK TABLE WITH FILTERS & SEARCH */}
       <Card className="shadow-sm border-slate-200">
         <CardHeader className="bg-gradient-to-r from-amber-50 via-orange-50/50 to-white border-b border-slate-200/80 pb-4">
@@ -159,10 +285,10 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
             <div>
               <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Hammer size={18} className="text-amber-600" />
-                Modul Produksi — SPK Pengerjaan Pabrik & Kontrol QC
+                Partner Produksi — SPK Pengerjaan, Foto WIP, & Kontrol QC
               </CardTitle>
               <CardDescription className="text-xs">
-                Pengerjaan bertahap tukang bengkel (Potong Rangka → Jahit Busa → Jok → QC Selesai) untuk pesanan custom & stok toko.
+                Controlling pengerjaan PO step-by-step oleh mitra pabrik hingga barang masuk gudang penyimpanan dengan dokumentasi foto visual.
               </CardDescription>
             </div>
 
@@ -179,7 +305,7 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Cari SPK / Sofa / Tukang..."
+                  placeholder="Cari SPK / Sofa / Mitra..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500"
@@ -210,10 +336,11 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
             <TableHeader>
               <TableRow className="bg-slate-50 text-[11px] font-semibold text-slate-500">
                 <TableHead className="pl-4">Nomor SPK</TableHead>
+                <TableHead>Kategori</TableHead>
+                <TableHead>Mitra & PIC</TableHead>
                 <TableHead>Konsumen & Sofa</TableHead>
-                <TableHead>Tukang PIC</TableHead>
-                <TableHead>Deadline</TableHead>
-                <TableHead>Tahap Pengerjaan Tukang</TableHead>
+                <TableHead>Controlling Step</TableHead>
+                <TableHead>Foto Hasil WIP</TableHead>
                 <TableHead>Status QC</TableHead>
                 <TableHead>Terkait SP</TableHead>
                 <TableHead className="text-right pr-4">Aksi Produksi & CRUD</TableHead>
@@ -223,27 +350,33 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
               {filteredSPK.map((spk) => {
                 const stepIdx = PRODUCTION_STEPS.indexOf(spk.currentStep);
                 const isFinished = spk.currentStep === "QC & Selesai";
+                const photoCount = spk.wipPhotos?.length || 0;
 
                 return (
                   <TableRow key={spk.id} className="hover:bg-slate-50/80 transition-colors">
                     <TableCell className="pl-4 font-mono font-bold text-amber-700">
-                      {spk.spkNumber}
+                      <div>{spk.spkNumber}</div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${
+                        spk.fulfillmentCategory === "Event / Display"
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : spk.fulfillmentCategory === "Komplain"
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
+                          : spk.fulfillmentCategory === "Stok"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                      }`}>
+                        {spk.fulfillmentCategory || "Penjualan"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-semibold text-slate-800">{spk.partnerName || "CV Mebel Kreasi Mandiri"}</div>
+                      <div className="text-[11px] text-slate-500">{spk.carpenterPIC}</div>
                     </TableCell>
                     <TableCell>
                       <div className="font-semibold text-slate-800">{spk.productName}</div>
                       <div className="text-[11px] text-slate-500">{spk.customerName || "Stok Display"}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-medium text-slate-800">{spk.carpenterPIC}</div>
-                      <div className="text-[10px] text-slate-400">
-                        {spk.hasBlueprint ? "✓ Gambar Kerja Ada" : "⚠ Belum ada gambar"}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-slate-600">
-                      <div className="flex items-center gap-1">
-                        <Clock size={12} className="text-slate-400" />
-                        <span>{spk.targetDeadline}</span>
-                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
@@ -264,6 +397,17 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
                           ))}
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenPhotoModal(spk)}
+                        className="h-7 px-2 text-[11px] flex items-center gap-1.5 border-slate-300 hover:border-amber-400 hover:bg-amber-50"
+                      >
+                        <Camera size={13} className={photoCount > 0 ? "text-amber-600" : "text-slate-400"} />
+                        <span>{photoCount > 0 ? `${photoCount} Foto` : "+ Upload"}</span>
+                      </Button>
                     </TableCell>
                     <TableCell>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -635,6 +779,180 @@ export default function ProduksiSection({ onNotify }: ProduksiSectionProps) {
                   Ya, Hapus SPK
                 </Button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* WIP PHOTO GALLERY & UPLOAD MODAL */}
+      <AnimatePresence>
+        {isPhotoModalOpen && photoSPK && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200"
+            >
+              <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-4 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-base flex items-center gap-2">
+                    <Camera size={18} />
+                    Dokumentasi Foto Hasil Pengerjaan WIP ({photoSPK.spkNumber})
+                  </h3>
+                  <p className="text-amber-100 text-xs mt-0.5">
+                    {photoSPK.productName} • Mitra: {photoSPK.partnerName || "CV Mebel Kreasi Mandiri"}
+                  </p>
+                </div>
+                <button onClick={() => setIsPhotoModalOpen(false)} className="text-amber-200 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-5 overflow-y-auto space-y-5 text-xs flex-1">
+                {/* EXISTING PHOTOS GALLERY */}
+                <div>
+                  <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-1.5 text-xs">
+                    <ImageIcon size={14} className="text-amber-600" />
+                    Galeri Foto Pengerjaan ({photoSPK.wipPhotos?.length || 0} Foto Tersimpan):
+                  </h4>
+
+                  {!photoSPK.wipPhotos || photoSPK.wipPhotos.length === 0 ? (
+                    <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 text-slate-400">
+                      <Camera size={28} className="mx-auto mb-1 text-slate-300" />
+                      <p className="text-xs">Belum ada foto progres yang diunggah untuk SPK ini.</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Gunakan formulir di bawah untuk mendokumentasikan progres per tahapan.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {photoSPK.wipPhotos.map((item) => (
+                        <div
+                          key={item.id}
+                          className="group relative border border-slate-200 rounded-xl overflow-hidden bg-slate-900 shadow-xs cursor-pointer hover:shadow-md transition-all"
+                          onClick={() => setEnlargedPhoto({ url: item.photoUrl, caption: item.caption, step: item.step })}
+                        >
+                          <img
+                            src={item.photoUrl}
+                            alt={item.caption || item.step}
+                            className="w-full h-28 object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-2 flex flex-col justify-between">
+                            <span className="self-start text-[9px] font-bold bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded shadow-xs">
+                              {item.step}
+                            </span>
+                            <div>
+                              <p className="text-[10px] text-white font-medium line-clamp-1">{item.caption || "Foto hasil progres"}</p>
+                              <span className="text-[9px] text-slate-300 block">{item.uploadedAt} • {item.uploadedBy}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* UPLOAD NEW PHOTO FORM */}
+                <form onSubmit={handleSaveWipPhoto} className="p-4 bg-amber-50/50 rounded-xl border border-amber-200 space-y-3">
+                  <h4 className="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
+                    <Upload size={14} className="text-amber-700" />
+                    Unggah Foto Hasil Tahapan Baru
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Tahap Pengerjaan</label>
+                      <select
+                        value={uploadStep}
+                        onChange={(e) => setUploadStep(e.target.value as any)}
+                        className="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs"
+                      >
+                        {PRODUCTION_STEPS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Pilih File Foto (Kamera / Galeri)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoFileChange}
+                        className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-700 cursor-pointer"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {previewPhotoUrl && (
+                    <div className="relative w-full h-36 bg-slate-100 rounded-lg overflow-hidden border border-slate-300">
+                      <img src={previewPhotoUrl} alt="Preview" className="w-full h-full object-contain" />
+                      <span className="absolute bottom-1 right-2 text-[10px] bg-black/60 text-white px-2 py-0.5 rounded">
+                        Preview Foto Siap Simpan
+                      </span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Keterangan / Catatan Foto</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Rangka mahoni selesai dirakit & diamplas halus, siap masuk busa"
+                      value={photoCaption}
+                      onChange={(e) => setPhotoCaption(e.target.value)}
+                      className="w-full border border-slate-300 rounded-lg p-2 bg-white text-xs"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button
+                      type="submit"
+                      disabled={!previewPhotoUrl}
+                      className="bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 px-4"
+                    >
+                      <Upload size={13} className="mr-1" />
+                      Simpan Foto Hasil Pengerjaan
+                    </Button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setIsPhotoModalOpen(false)}>
+                  Tutup
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PHOTO ZOOM / LIGHTBOX MODAL */}
+      <AnimatePresence>
+        {enlargedPhoto && (
+          <div 
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm cursor-pointer"
+            onClick={() => setEnlargedPhoto(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="max-w-3xl w-full bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-3 bg-black/60 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold bg-amber-500 text-black px-2 py-0.5 rounded">
+                    Tahap: {enlargedPhoto.step}
+                  </span>
+                  <span className="text-xs text-slate-300">{enlargedPhoto.caption}</span>
+                </div>
+                <button onClick={() => setEnlargedPhoto(null)} className="text-slate-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+              <img src={enlargedPhoto.url} alt="Enlarged WIP" className="w-full max-h-[75vh] object-contain bg-black" />
             </motion.div>
           </div>
         )}
