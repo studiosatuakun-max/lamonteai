@@ -1,6 +1,3 @@
-"use server";
-
-import { revalidatePath } from "next/cache";
 import { 
   CreateOrderPayload, 
   ActionResponse, 
@@ -106,8 +103,6 @@ export async function submitOrderToEngine(payload: CreateOrderPayload): Promise<
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-
-    revalidatePath("/operations");
 
     return {
       success: true,
